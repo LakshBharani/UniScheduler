@@ -6,13 +6,16 @@ import pandas as pd
 from google import genai
 from google.genai import types
 import json
+from dotenv import load_dotenv
+import os
 
 app = Flask(__name__)
 CORS(app)
+load_dotenv()
 
 def ai_maker(prompt):
     client = genai.Client(
-        api_key="AIzaSyAuO5pj9LOM94s0QOzAUH6u5YImT0ZLbe4",
+        api_key=os.getenv("GEMINI_API_KEY"),
     )
 
     model = "gemini-2.0-flash"
