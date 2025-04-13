@@ -185,9 +185,7 @@ const CalendarView = ({ schedule }) => {
               Array.from({ length: 5 }).map((_, colIndex) => (
                 <div
                   key={`${rowIndex}-${colIndex}`}
-                  className={`h-3 border-b border-r ${
-                    colIndex === 0 ? "border-l" : ""
-                  }`}
+                  className={`h-3 border-b border-r`}
                 />
               ))
             )}
@@ -229,26 +227,13 @@ const CalendarView = ({ schedule }) => {
               >
                 <div className="flex items-center mb-1">
                   <div
-                    className={`w-2 h-2 rounded-full ${hoveredClass.color.replace(
-                      "bg-",
-                      "bg-"
-                    )} mr-1`}
+                    className={`w-2 h-2 rounded-full ${hoveredClass.color} mr-1`}
                   ></div>
-                  <h2
-                    className={`text-xs font-bold ${hoveredClass.color.replace(
-                      "bg-",
-                      "text-"
-                    )}`}
-                  >
+                  <h2 className={`text-xs font-bold`}>
                     {hoveredClass.courseNumber}
                   </h2>
                 </div>
-                <div
-                  className={`space-y-1 text-[10px] ${hoveredClass.color.replace(
-                    "bg-",
-                    "text-"
-                  )}`}
-                >
+                <div className="space-y-1 text-[10px]">
                   <div className="flex items-start">
                     <span className="font-semibold w-12">Course:</span>
                     <span className="flex-1">{hoveredClass.courseName}</span>

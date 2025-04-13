@@ -57,19 +57,19 @@ function SchedulerForm({ onScheduleGenerated }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white border border-gray-200 rounded-lg p-6 mb-5"
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-5"
     >
-      <h2 className="text-xl font-semibold mb-6 text-center text-[#861F41]">
+      <h2 className="text-xl font-semibold mb-6 text-center text-[#861F41] dark:text-[#E5751F]">
         Enter Courses
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {courses.map((course, index) => (
           <div
             key={index}
-            className="flex flex-wrap items-end gap-3 mb-4 bg-gray-50 p-4 rounded-lg"
+            className="flex flex-wrap items-end gap-3 mb-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg"
           >
             <div className="flex-1 min-w-[120px]">
-              <label className="block text-sm font-medium text-[#75787B] mb-1">
+              <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
                 Department
               </label>
               <input
@@ -77,12 +77,12 @@ function SchedulerForm({ onScheduleGenerated }) {
                 name="department"
                 value={course.department}
                 onChange={(e) => handleCourseChange(index, e)}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F]"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
                 required
               />
             </div>
             <div className="flex-1 min-w-[120px]">
-              <label className="block text-sm font-medium text-[#75787B] mb-1">
+              <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
                 Course Number
               </label>
               <input
@@ -90,12 +90,12 @@ function SchedulerForm({ onScheduleGenerated }) {
                 name="number"
                 value={course.number}
                 onChange={(e) => handleCourseChange(index, e)}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F]"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
                 required
               />
             </div>
             <div className="flex-1 min-w-[120px]">
-              <label className="block text-sm font-medium text-[#75787B] mb-1">
+              <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
                 Professor (Optional)
               </label>
               <input
@@ -103,7 +103,7 @@ function SchedulerForm({ onScheduleGenerated }) {
                 name="professor"
                 value={course.professor}
                 onChange={(e) => handleCourseChange(index, e)}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F]"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
               />
             </div>
             <button
@@ -127,18 +127,20 @@ function SchedulerForm({ onScheduleGenerated }) {
         </button>
       </div>
       <div className="mb-4">
-        <label className="block text-sm font-medium text-[#75787B] mb-1">
+        <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
           Schedule Preferences
         </label>
         <textarea
           value={preferences}
           onChange={(e) => setPreferences(e.target.value)}
-          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] resize-y"
+          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white resize-y"
           rows="2"
           placeholder="e.g., No 8 AMs, prefer M/W classes"
         />
       </div>
-      {error && <p className="text-red-500 text-xs mb-2">{error}</p>}
+      {error && (
+        <p className="text-red-500 dark:text-red-400 text-xs mb-2">{error}</p>
+      )}
       <div>
         <button
           type="submit"

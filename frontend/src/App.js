@@ -24,32 +24,13 @@ function App() {
           <h1 className="text-3xl font-bold text-[#861F41] sm:text-4xl">
             VT Hokie Scheduler
           </h1>
-          <p className="mt-2 text-lg text-[#75787B]">
-            Create your perfect class schedule with ease
-          </p>
         </header>
-
-        <main className="space-y-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border-t-4 border-[#E5751F]">
-            <SchedulerForm onScheduleGenerated={handleScheduleGenerated} />
+        <SchedulerForm onScheduleGenerated={handleScheduleGenerated} />
+        {schedule && (
+          <div ref={scheduleRef}>
+            <ScheduleViewer schedule={schedule} />
           </div>
-
-          {schedule && (
-            <div
-              ref={scheduleRef}
-              className="bg-white rounded-xl shadow-sm p-6 border-t-4 border-[#E5751F]"
-            >
-              <ScheduleViewer schedule={schedule} />
-            </div>
-          )}
-        </main>
-
-        <footer className="mt-12 text-center text-sm text-[#75787B]">
-          <p>
-            © {new Date().getFullYear()} Virginia Tech Hokie Scheduler. All
-            rights reserved.
-          </p>
-        </footer>
+        )}
       </div>
     </div>
   );

@@ -140,7 +140,7 @@ function ScheduleViewer({ schedule }) {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="text-sm font-semibold text-blue-900">
-                            {cls.courseNumber} - {cls.courseName}
+                            {cls.courseNumber}
                           </h4>
                           <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">
                             Online
