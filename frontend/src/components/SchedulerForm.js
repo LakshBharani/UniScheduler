@@ -46,7 +46,14 @@ function SchedulerForm({ onScheduleGenerated }) {
           preferences,
         }
       );
-      onScheduleGenerated(response.data);
+      if (response.data === "NO_VALID_SCHEDULE_FOUND") {
+        setError(
+          "No valid schedule found. Please try different courses or preferences."
+        );
+        onScheduleGenerated(null);
+      } else {
+        onScheduleGenerated(response.data);
+      }
     } catch (err) {
       setError("Failed to generate schedule. Please try again.");
     } finally {

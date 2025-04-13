@@ -20,55 +20,59 @@ def ai_maker(prompt):
     )
 
     model = "gemini-2.0-flash"
-    contents = [
-        types.Content(
-            role="user",
-            parts=[
-                types.Part.from_text(text=f"""{prompt}"""),
-            ],
-        ),
-    ]
-    generate_content_config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=genai.types.Schema(
-            type=genai.types.Type.OBJECT,
-            required=["classes"],
-            properties={
-                "classes": genai.types.Schema(
-                    type=genai.types.Type.ARRAY,
-                    items=genai.types.Schema(
-                        type=genai.types.Type.OBJECT,
-                        required=["crn", "courseNumber", "courseName",
-                                  "professorName", "days", "time", "location"],
-                        properties={
-                            "crn": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                            "courseNumber": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                            "courseName": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                            "professorName": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                            "days": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                            "time": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                            "location": genai.types.Schema(
-                                type=genai.types.Type.STRING,
-                            ),
-                        },
+    max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
+    retry_count = 0
+
+    while retry_count < max_retries:
+        contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=f"""{prompt}"""),
+                ],
+            ),
+        ]
+        generate_content_config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=genai.types.Schema(
+                type=genai.types.Type.OBJECT,
+                required=["classes"],
+                properties={
+                    "classes": genai.types.Schema(
+                        type=genai.types.Type.ARRAY,
+                        items=genai.types.Schema(
+                            type=genai.types.Type.OBJECT,
+                            required=["crn", "courseNumber", "courseName",
+                                      "professorName", "days", "time", "location"],
+                            properties={
+                                "crn": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                                "courseNumber": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                                "courseName": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                                "professorName": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                                "days": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                                "time": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                                "location": genai.types.Schema(
+                                    type=genai.types.Type.STRING,
+                                ),
+                            },
+                        ),
                     ),
-                ),
-            },
-        ),
-        system_instruction=[
-            types.Part.from_text(text='''
+                },
+            ),
+            system_instruction=[
+                types.Part.from_text(text='''
 You are a virtual timetable generator.
 !!! IMPORTANT !!!
 IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED.
@@ -80,7 +84,7 @@ Input:
     - Course Code
     - Course Name
     - Instructor Name
-    - Schedule Type
+    - Schedule Type (Lecture, Lab, etc.)
     - Days (e.g., M, T, W, R, F)
     - Start Time and End Time
     - Location
@@ -101,50 +105,179 @@ Special Handling for "* Additional Times *":
 5. If even a single course causes conflict (due to overlap or missing buffer), you must return **nothing at all** — no partial schedules.
 6. If a CRN includes any "* Additional Time *" entries, those must be treated as part of that CRN. Do not exclude them.
 7. You must never include only part of a CRN's time blocks — **include all or exclude all**.
-8. If the course has a lab, you must include the lab section in the schedule.
-9. If the course has a lecture, you must include the lecture section in the schedule.
-10. Keep trying until the schedule is valid.
-11. Keep 5 minutes gap between classes.
+8. For courses with both lecture and lab components:
+   - You MUST include both components in the schedule
+   - If you cannot fit both components without conflicts, return nothing
+   - Do not create a schedule with only lecture or only lab
+9. For courses with only lecture or only lab:
+   - You MUST include that component
+   - If you cannot fit it without conflicts, return nothing
+10. Keep trying different combinations until you find a valid schedule
+11. If no valid schedule is possible after trying all combinations, return "NO_VALID_SCHEDULE_FOUND"
 
 ✨ Preferences (only if all strict rules are satisfied):
-- Prefer professors mentioned by the user.
-- Prefer morning or afternoon classes, if specified.
-- Prioritize classes with cleaner or fewer blocks.
+- Prefer professors mentioned by the user
+- Prefer morning or afternoon classes, if specified
+- Prioritize classes with cleaner or fewer blocks
 
 ✅ Output Format:
 If a valid, fully non-overlapping timetable is possible, return it in this format (one row per time block):
 
 CRN    Course    Course Name    Instructor    Day    Start Time - End Time    Location
 
-- One row per day — if a class meets on M/W/F, generate three separate rows.
-- Use 12-hour format (e.g., 9:30AM - 10:45AM).
-- Do not include headers, comments, or notes — just rows.
+- One row per day — if a class meets on M/W/F, generate three separate rows
+- Use 12-hour format (e.g., 9:30AM - 10:45AM)
+- Do not include headers, comments, or notes — just rows
 
 ❌ If even one course makes the schedule invalid (due to overlap or timing), return **nothing at all**.
                                  
 !!! IMPORTANT !!!
-BEFORE RETURNING ANY SCHEDULE, CHECK IF THE SCHEDULE IS VALID (NO CLASHES).
-IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED. KEEP TRYING UNTIL THE CLASH IS RESOLVED.
+BEFORE RETURNING ANY SCHEDULE:
+1. Check for any time overlaps between all classes
+2. Verify that all required components (lecture/lab) are included
+3. Ensure there is at least a 5-minute gap between consecutive classes
+4. If any of these checks fail, return nothing and try another combination
+5. If no valid combination is found after trying all possibilities, return "NO_VALID_SCHEDULE_FOUND"
 '''),
-        ],
-    )
+            ],
+        )
 
-    responseText = ""
-    total_tokens = 0
-    for chunk in client.models.generate_content_stream(
-        model=model,
-        contents=contents,
-        config=generate_content_config,
-    ):
-        responseText += chunk.text
-        if hasattr(chunk, 'usage_metadata'):
-            total_tokens += chunk.usage_metadata.total_token_count
-            print(f"Token usage: {total_tokens} tokens")
+        responseText = ""
+        total_tokens = 0
+        for chunk in client.models.generate_content_stream(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        ):
+            responseText += chunk.text
+            if hasattr(chunk, 'usage_metadata'):
+                total_tokens += chunk.usage_metadata.total_token_count
+                print(f"Token usage: {total_tokens} tokens")
 
-    print(f"Total token usage: {total_tokens} tokens")
+        print(f"Total token usage: {total_tokens} tokens")
 
-    response_dict = json.loads(responseText)
-    return response_dict
+        try:
+            response_dict = json.loads(responseText)
+
+            # If we got a valid schedule, check for overlaps and completeness
+            if "classes" in response_dict and response_dict["classes"]:
+                # First, check if all requested courses are included
+                requested_courses = set()
+                for course in courses:
+                    requested_courses.add(
+                        course['department'] + course['number'])
+
+                scheduled_courses = set()
+                for cls in response_dict["classes"]:
+                    scheduled_courses.add(cls["courseNumber"])
+
+                if requested_courses != scheduled_courses:
+                    print(
+                        f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
+                    retry_count += 1
+                    continue
+
+                # Convert time strings to minutes for easier comparison
+                def time_to_minutes(time_str):
+                    # Handle different time formats
+                    if ' ' in time_str:
+                        time, period = time_str.split()
+                    else:
+                        # If no space, find where the time ends and period begins
+                        for i, char in enumerate(time_str):
+                            if char.isalpha():
+                                time = time_str[:i]
+                                period = time_str[i:]
+                                break
+                        else:
+                            # If no period found, assume 24-hour format
+                            time = time_str
+                            period = ''
+
+                    # Parse hours and minutes
+                    if ':' in time:
+                        hours, minutes = map(int, time.split(':'))
+                    else:
+                        hours = int(time)
+                        minutes = 0
+
+                    # Convert to 24-hour format
+                    if period:
+                        if period.upper() == 'PM' and hours != 12:
+                            hours += 12
+                        elif period.upper() == 'AM' and hours == 12:
+                            hours = 0
+
+                    return hours * 60 + minutes
+
+                # Group classes by day
+                classes_by_day = {}
+                for cls in response_dict["classes"]:
+                    try:
+                        days = list(cls["days"])
+                        # Log the time string for debugging
+                        print(f"Processing time string: {cls['time']}")
+
+                        # Split time string and handle potential errors
+                        time_parts = cls["time"].split(" - ")
+                        if len(time_parts) != 2:
+                            print(f"Invalid time format: {cls['time']}")
+                            continue
+
+                        start_time, end_time = time_parts
+
+                        for day in days:
+                            if day not in classes_by_day:
+                                classes_by_day[day] = []
+                            classes_by_day[day].append({
+                                "start": time_to_minutes(start_time),
+                                "end": time_to_minutes(end_time),
+                                "crn": cls["crn"],
+                                "course": cls["courseNumber"]
+                            })
+                    except Exception as e:
+                        print(
+                            f"Error processing class {cls['courseNumber']}: {str(e)}")
+                        continue
+
+                # Check for overlaps in each day
+                has_overlap = False
+                for day, classes in classes_by_day.items():
+                    # Sort classes by start time
+                    classes.sort(key=lambda x: x["start"])
+
+                    # Check each consecutive pair
+                    for i in range(len(classes) - 1):
+                        current = classes[i]
+                        next_class = classes[i + 1]
+
+                        # Check for overlap or insufficient gap
+                        if current["end"] > next_class["start"] or \
+                           (next_class["start"] - current["end"]) < 5:  # 5-minute gap requirement
+                            has_overlap = True
+                            print(
+                                f"Overlap found on {day} between {current['course']} and {next_class['course']}")
+                            break
+
+                    if has_overlap:
+                        break
+
+                if not has_overlap:
+                    return response_dict
+                else:
+                    print("Overlap detected, retrying...")
+                    retry_count += 1
+                    continue
+            else:
+                return response_dict
+
+        except json.JSONDecodeError:
+            print("Invalid JSON response, retrying...")
+            retry_count += 1
+            continue
+
+    # If we've exhausted all retries
+    return {"classes": []}
 
 
 def courseDetailsExractor(department: str, coursenumber):
