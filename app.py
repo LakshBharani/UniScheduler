@@ -19,7 +19,7 @@ def ai_maker(prompt):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.0-flash"
+    model = "gemini-1.5-pro"
     contents = [
         types.Content(
             role="user",
@@ -139,7 +139,7 @@ def courseDetailsExractor(department: str, coursenumber):
     url = "https://selfservice.banner.vt.edu/ssb/HZSKVTSC.P_ProcRequest"
     form_data = {
         "CAMPUS": "0",
-        "TERMYEAR": "202509",
+        "TERMYEAR": "202501",
         "CORE_CODE": "AR%",
         "subj_code": department.upper(),
         "SCHDTYPE": "%",

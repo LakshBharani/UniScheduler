@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { TrashIcon } from "@heroicons/react/24/solid";
+
 
 function SchedulerForm({ onScheduleGenerated }) {
   const [courses, setCourses] = useState([
@@ -15,6 +17,11 @@ function SchedulerForm({ onScheduleGenerated }) {
     newCourses[index][name] = value;
     setCourses(newCourses);
   };
+
+  const deleteCourse = (index) => {
+    const newCourses = courses.filter((_, i) => i !== index);
+    setCourses(newCourses);
+  };  
 
   const addCourse = () => {
     setCourses([...courses, { department: "", number: "", professor: "" }]);
@@ -90,6 +97,14 @@ function SchedulerForm({ onScheduleGenerated }) {
               className="w-full p-2 border border-gray-300 rounded"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => deleteCourse(index)}
+            className="w-[42px] h-[42px] bg-red-500 hover:bg-red-600 flex items-center justify-center rounded mt-[27px]" // mt aligns with label height
+            title="Delete Course"
+          >
+            <TrashIcon className="h-5 w-5 text-white" />
+          </button>
         </div>
       ))}
       <div className="mb-4">
