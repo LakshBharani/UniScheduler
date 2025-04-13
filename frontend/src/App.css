@@ -1,3 +1,59 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        @apply antialiased;
+    }
+
+    body {
+        @apply bg-gray-50 text-gray-900;
+    }
+}
+
+@layer components {
+    .container {
+        @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    }
+
+    .card {
+        @apply bg-white rounded-xl shadow-sm p-6;
+    }
+
+    .btn {
+        @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-vt-maroon hover:bg-vt-maroon-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vt-maroon transition-colors;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center px-4 py-2 border border-vt-orange text-sm font-medium rounded-md text-vt-orange bg-white hover:bg-vt-orange-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vt-orange transition-colors;
+    }
+}
+
+/* VT Color Variables */
+:root {
+    --vt-maroon: #861F41;
+    --vt-maroon-dark: #6B1934;
+    --vt-orange: #E5751F;
+    --vt-orange-light: #FFF5EE;
+    --vt-slate: #75787B;
+}
+
+/* Responsive typography */
+@media (max-width: 640px) {
+    html {
+        font-size: 14px;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+    html {
+        font-size: 15px;
+    }
+}
+
+@media (min-width: 1025px) {
+    html {
+        font-size: 16px;
+    }
+}

@@ -19,7 +19,7 @@ def ai_maker(prompt):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-1.5-pro"
+    model = "gemini-2.0-flash"
     contents = [
         types.Content(
             role="user",
@@ -70,49 +70,61 @@ def ai_maker(prompt):
         system_instruction=[
             types.Part.from_text(text='''
 You are a virtual timetable generator.
-
-The user will provide:
-- A list of required courses.
-- A list of all available sections. Each section may include:
-    - CRN
+!!! IMPORTANT !!!
+IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED.
+                                 
+Input:
+- A list of required courses the user must take.
+- A list of available sections. Each section includes:
+    - CRN (Course Reference Number)
     - Course Code
     - Course Name
-    - Instructor
+    - Instructor Name
     - Schedule Type
-    - Days (M, T, W, R, F)
+    - Days (e.g., M, T, W, R, F)
     - Start Time and End Time
     - Location
 
-Some classes may include special entries labeled as "* Additional Times *". These entries are part of the same CRN but contain the actual meeting time and location instead of the main row. In such cases:
+Special Handling for "* Additional Times *":
+- Some sections may include rows labeled "* Additional Times *".
+- These rows contain the actual **meeting days, time, and location**, but are missing other fields.
+- If an entry is marked as "* Additional Times *", fetch the full course details (Course Code, Name, Instructor, etc.) from the matching CRN's main section.
+- Treat these as valid class time blocks and combine them with the main row to form the complete schedule.
 
-✅ Special Case Handling:
-- If a section has `Modality` marked as "* Additional Times *", it may contain the real `Days`, `Begin Time`, `End Time`, and `Location`.
-- You must **find the original section with the same CRN** that contains the correct Course Name, Instructor, and other details.
-- Use:
-    - The **Course Name, Title, Instructor, Course Code** from the original main row.
-    - The **Day, Begin Time, End Time, and Location** from the additional time row.
-- Treat these as normal class time entries for scheduling and formatting.
+🚨 SUPER STRICT RULES (MUST NEVER BE BROKEN):
 
-General Rules:
-1. You must include **exactly one section for each required course** (one CRN per course).
-2. All time slots for a selected CRN must be included — whether in the main section or "additional time" — and shown as separate rows.
-3. No overlapping time slots allowed.
-4. At least a **5-minute gap** must exist between any two classes.
-5. If one class cannot be included due to conflict or gap issues, output **nothing at all**.
-6. If a class has both theory and lab or multiple time blocks for a CRN, all of them must be included together.
-7. Preferred professors and time preferences may guide choices, but never violate the above rules.
+1. You must select **exactly one section (CRN)** per required course.
+2. A selected CRN may have multiple time blocks (e.g., lecture + lab, or MWF) — you must include **all** of them.
+3. **No two classes can overlap at all — even by a single minute.**  
+   - Example: A class ending at 10:00AM and another starting at 10:00AM is a conflict.
+4. There must be **at least a 5-minute gap** between any two consecutive classes.
+5. If even a single course causes conflict (due to overlap or missing buffer), you must return **nothing at all** — no partial schedules.
+6. If a CRN includes any "* Additional Time *" entries, those must be treated as part of that CRN. Do not exclude them.
+7. You must never include only part of a CRN's time blocks — **include all or exclude all**.
+8. If the course has a lab, you must include the lab section in the schedule.
+9. If the course has a lecture, you must include the lecture section in the schedule.
+10. Keep trying until the schedule is valid.
+11. Keep 5 minutes gap between classes.
+
+✨ Preferences (only if all strict rules are satisfied):
+- Prefer professors mentioned by the user.
+- Prefer morning or afternoon classes, if specified.
+- Prioritize classes with cleaner or fewer blocks.
 
 ✅ Output Format:
-For successful scheduling, output rows as follows (one per time block):
+If a valid, fully non-overlapping timetable is possible, return it in this format (one row per time block):
 
 CRN    Course    Course Name    Instructor    Day    Start Time - End Time    Location
 
-- Days are M, T, W, R, F where it starts with Monday.
-- Use 12-hour format with AM/PM.
-- If a CRN has classes on multiple days, output one row per day.
-- Do **not** include any header, explanation, or extra output.
+- One row per day — if a class meets on M/W/F, generate three separate rows.
+- Use 12-hour format (e.g., 9:30AM - 10:45AM).
+- Do not include headers, comments, or notes — just rows.
 
-If no valid complete timetable can be generated, output **nothing**.
+❌ If even one course makes the schedule invalid (due to overlap or timing), return **nothing at all**.
+                                 
+!!! IMPORTANT !!!
+BEFORE RETURNING ANY SCHEDULE, CHECK IF THE SCHEDULE IS VALID (NO CLASHES).
+IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED. KEEP TRYING UNTIL THE CLASH IS RESOLVED.
 '''),
         ],
     )
@@ -130,7 +142,7 @@ If no valid complete timetable can be generated, output **nothing**.
             print(f"Token usage: {total_tokens} tokens")
 
     print(f"Total token usage: {total_tokens} tokens")
-    print(responseText)
+
     response_dict = json.loads(responseText)
     return response_dict
 
