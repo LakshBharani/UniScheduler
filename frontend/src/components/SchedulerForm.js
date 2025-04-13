@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import styles from './SchedulerForm.module.css';
+import React, { useState } from "react";
+import axios from "axios";
 
 function SchedulerForm({ onScheduleGenerated }) {
-  const [courses, setCourses] = useState([{ department: "", number: "", professor: "" }]);
+  const [courses, setCourses] = useState([
+    { department: "", number: "", professor: "" },
+  ]);
   const [preferences, setPreferences] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,10 +33,13 @@ function SchedulerForm({ onScheduleGenerated }) {
     setError("");
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:8080/api/generate_schedule", {
-        courses,
-        preferences
-      });
+      const response = await axios.post(
+        "http://localhost:8080/api/generate_schedule",
+        {
+          courses,
+          preferences,
+        }
+      );
       onScheduleGenerated(response.data);
     } catch (err) {
       setError("Failed to generate schedule. Please try again.");
@@ -45,62 +49,75 @@ function SchedulerForm({ onScheduleGenerated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className={styles.formContainer}>
-      <h2 className={styles.formTitle}>Enter Courses</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white border border-gray-200 rounded-lg p-5 mb-5"
+    >
+      <h2 className="text-2xl font-bold mb-4 text-center">Enter Courses</h2>
       {courses.map((course, index) => (
-        <div key={index} className={styles.inputRow}>
-          <div className={styles.inputGroup}>
-            <label className={styles.label}>Department</label>
+        <div key={index} className="flex flex-wrap mb-4">
+          <div className="flex-1 min-w-[150px] mr-4 mb-2">
+            <label className="block font-bold mb-1">Department</label>
             <input
               type="text"
               name="department"
               value={course.department}
               onChange={(e) => handleCourseChange(index, e)}
-              className={styles.input}
+              className="w-full p-2 border border-gray-300 rounded"
               required
             />
           </div>
-          <div className={styles.inputGroup}>
-            <label className={styles.label}>Course Number</label>
+          <div className="flex-1 min-w-[150px] mr-4 mb-2">
+            <label className="block font-bold mb-1">Course Number</label>
             <input
               type="text"
               name="number"
               value={course.number}
               onChange={(e) => handleCourseChange(index, e)}
-              className={styles.input}
+              className="w-full p-2 border border-gray-300 rounded"
               required
             />
           </div>
-          <div className={styles.inputGroup}>
-            <label className={styles.label}>Professor Name (Optional)</label>
+          <div className="flex-1 min-w-[150px] mr-4 mb-2">
+            <label className="block font-bold mb-1">
+              Professor Name (Optional)
+            </label>
             <input
               type="text"
               name="professor"
               value={course.professor}
               onChange={(e) => handleCourseChange(index, e)}
-              className={styles.input}
+              className="w-full p-2 border border-gray-300 rounded"
             />
           </div>
         </div>
       ))}
-      <div className={styles.inputRow}>
-        <button type="button" onClick={addCourse} className={styles.button}>
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={addCourse}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
           Add Another Course
         </button>
       </div>
-      <div className={styles.inputRow}>
-        <label className={styles.label}>Schedule Preferences</label>
+      <div className="mb-4">
+        <label className="block font-bold mb-1">Schedule Preferences</label>
         <textarea
           value={preferences}
           onChange={(e) => setPreferences(e.target.value)}
-          className={styles.textarea}
+          className="w-full p-2 border border-gray-300 rounded resize-y"
           rows="3"
           placeholder="e.g., No 8 AMs, prefer M/W classes"
         />
       </div>
-      {error && <p className={styles.error}>{error}</p>}
-      <div className={styles.inputRow}>
-        <button type="submit" disabled={loading} className={styles.button}>
+      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+      <div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
           {loading ? "Generating..." : "Create Schedule"}
         </button>
       </div>
