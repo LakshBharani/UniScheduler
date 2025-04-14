@@ -133,6 +133,10 @@ function ScheduleViewer({ schedule }) {
                     .filter((cls) =>
                       cls.location.toLowerCase().includes("online")
                     )
+                    .filter(
+                      (cls, index, self) =>
+                        index === self.findIndex((c) => c.crn === cls.crn)
+                    )
                     .map((cls, index) => (
                       <div
                         key={index}

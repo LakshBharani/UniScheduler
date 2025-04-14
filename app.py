@@ -288,11 +288,11 @@ BEFORE RETURNING ANY SCHEDULE:
     return {"classes": []}
 
 
-def courseDetailsExractor(department: str, coursenumber):
+def courseDetailsExractor(department: str, coursenumber, term_year: str):
     url = "https://selfservice.banner.vt.edu/ssb/HZSKVTSC.P_ProcRequest"
     form_data = {
         "CAMPUS": "0",
-        "TERMYEAR": "202501",
+        "TERMYEAR": term_year,
         "CORE_CODE": "AR%",
         "subj_code": department.upper(),
         "SCHDTYPE": "%",
@@ -361,7 +361,8 @@ def generate_schedule():
         ai_prompt += f"<course_number>{course['department']+course['number']}</course_number>\n"
         ai_prompt += f"<professor_preference>{course['professor']}</professor_preference>\n"
         ai_prompt += f"<timetable_of_classes_for_the_course>\n"
-        df = courseDetailsExractor(course['department'], course['number'])
+        df = courseDetailsExractor(
+            course['department'], course['number'], data['term_year'])
         ai_prompt += df.to_csv(index=False)
         ai_prompt += "\n</timetable_of_classes_for_the_course>"
     schedule = ai_maker(ai_prompt, courses)

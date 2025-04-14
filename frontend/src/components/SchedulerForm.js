@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { TrashIcon } from "@heroicons/react/24/solid";
 
@@ -9,6 +9,64 @@ function SchedulerForm({ onScheduleGenerated }) {
   const [preferences, setPreferences] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedSemester, setSelectedSemester] = useState("");
+  const [semesterOptions, setSemesterOptions] = useState([]);
+
+  useEffect(() => {
+    // Generate semester options when component mounts
+    const generateSemesterOptions = () => {
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth();
+
+      // Determine current semester
+      let currentSemester;
+      if (currentMonth >= 0 && currentMonth <= 4) {
+        currentSemester = "Spring";
+      } else if (currentMonth >= 5 && currentMonth <= 7) {
+        currentSemester = "Summer";
+      } else {
+        currentSemester = "Fall";
+      }
+
+      const options = [];
+      let year = currentYear;
+      let semester = currentSemester;
+
+      // Add current semester and next two
+      for (let i = 0; i < 3; i++) {
+        // Generate term year code
+        let termYearCode;
+        if (semester === "Spring") {
+          termYearCode = `${year}01`;
+        } else if (semester === "Summer") {
+          termYearCode = `${year}06`;
+        } else {
+          termYearCode = `${year}09`;
+        }
+
+        options.push({
+          display: `${semester} ${year}`,
+          termYear: termYearCode,
+        });
+
+        // Move to next semester
+        if (semester === "Spring") {
+          semester = "Summer";
+        } else if (semester === "Summer") {
+          semester = "Fall";
+        } else {
+          semester = "Spring";
+          year++;
+        }
+      }
+
+      setSemesterOptions(options);
+      setSelectedSemester(options[0].termYear); // Set default to first option's term year
+    };
+
+    generateSemesterOptions();
+  }, []);
 
   const handleCourseChange = (index, e) => {
     const { name, value } = e.target;
@@ -44,6 +102,7 @@ function SchedulerForm({ onScheduleGenerated }) {
         {
           courses,
           preferences,
+          term_year: selectedSemester,
         }
       );
       if (response.data === "NO_VALID_SCHEDULE_FOUND") {
@@ -66,9 +125,27 @@ function SchedulerForm({ onScheduleGenerated }) {
       onSubmit={handleSubmit}
       className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-5"
     >
-      <h2 className="text-xl font-semibold mb-6 text-center text-[#861F41] dark:text-[#E5751F]">
-        Enter Courses
-      </h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold text-[#861F41] dark:text-[#E5751F]">
+          Enter Courses
+        </h2>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-[#75787B] dark:text-gray-400">
+            Semester:
+          </label>
+          <select
+            value={selectedSemester}
+            onChange={(e) => setSelectedSemester(e.target.value)}
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white py-1 pl-2 pr-8 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em_1.5em] bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236B7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]"
+          >
+            {semesterOptions.map((option) => (
+              <option key={option.termYear} value={option.termYear}>
+                {option.display}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {courses.map((course, index) => (
           <div
