@@ -14,12 +14,12 @@ CORS(app)
 load_dotenv()
 
 
-def ai_maker(prompt):
+def ai_maker(prompt, courses):
     client = genai.Client(
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.0-flash"
+    model = "gemini-2.5-pro-exp-03-25"
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
 
@@ -76,6 +76,10 @@ def ai_maker(prompt):
 You are a virtual timetable generator.
 !!! IMPORTANT !!!
 IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED.
+
+🚨 CRITICAL FORMAT REQUIREMENT:
+- Course codes MUST be in the format: DEPARTMENTNUMBER (e.g., "ENGL1106", "CS2114")
+- DO NOT use hyphens in course codes (e.g., do NOT use "ENGL-1106" or "CS-2114")
                                  
 Input:
 - A list of required courses the user must take.
@@ -128,6 +132,8 @@ CRN    Course    Course Name    Instructor    Day    Start Time - End Time    Lo
 - One row per day — if a class meets on M/W/F, generate three separate rows
 - Use 12-hour format (e.g., 9:30AM - 10:45AM)
 - Do not include headers, comments, or notes — just rows
+- Course codes MUST be in the format: DEPARTMENTNUMBER (e.g., "ENGL1106", "CS2114")
+- DO NOT use hyphens in course codes
 
 ❌ If even one course makes the schedule invalid (due to overlap or timing), return **nothing at all**.
                                  
@@ -169,7 +175,9 @@ BEFORE RETURNING ANY SCHEDULE:
 
                 scheduled_courses = set()
                 for cls in response_dict["classes"]:
-                    scheduled_courses.add(cls["courseNumber"])
+                    # Normalize course number by removing hyphens
+                    course_number = cls["courseNumber"].replace("-", "")
+                    scheduled_courses.add(course_number)
 
                 if requested_courses != scheduled_courses:
                     print(
@@ -356,7 +364,7 @@ def generate_schedule():
         df = courseDetailsExractor(course['department'], course['number'])
         ai_prompt += df.to_csv(index=False)
         ai_prompt += "\n</timetable_of_classes_for_the_course>"
-    schedule = ai_maker(ai_prompt)
+    schedule = ai_maker(ai_prompt, courses)
 
     return jsonify(schedule)
 
