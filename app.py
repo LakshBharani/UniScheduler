@@ -54,6 +54,7 @@ def generate_schedule_pdf(schedule_data, inputColors):
     create_calendar_plot(schedule_data, inputColors, "calendar_plot.png")
     from reportlab.platypus import Image
     elements.append(Image("calendar_plot.png", width=500, height=300))
+    os.remove("calendar_plot.png")
 
     doc.build(elements)
     buffer.seek(0)
@@ -132,7 +133,7 @@ def ai_maker(prompt, courses):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.0-flash"
+    model = "gemini-2.5-pro-exp-03-25"
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
 
@@ -178,6 +179,9 @@ def ai_maker(prompt, courses):
                                 ),
                                 "location": genai.types.Schema(
                                     type=genai.types.Type.STRING,
+                                ),
+                                "isLab": genai.types.Schema(
+                                    type = genai.types.Type.BOOLEAN,
                                 ),
                             },
                         ),

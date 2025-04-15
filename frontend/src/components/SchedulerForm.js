@@ -84,6 +84,18 @@ function SchedulerForm({ onScheduleGenerated }) {
     setCourses([...courses, { department: "", number: "", professor: "" }]);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter" && e.shiftKey) {
+        e.preventDefault(); // Prevent default form behavior
+        addCourse();
+      }
+    };
+  
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [courses]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validate: Ensure department and course number fields are filled.
