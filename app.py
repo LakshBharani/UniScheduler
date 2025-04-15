@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from bs4 import BeautifulSoup
 import requests
@@ -8,10 +8,121 @@ from google.genai import types
 import json
 from dotenv import load_dotenv
 import os
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+import io
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import random
+
 
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
+
+
+def generate_schedule_pdf(schedule_data):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
+    elements.append(Paragraph("Course Schedule", styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    table_data = [["Course", "Number", "CRN", "Day", "Time", "Location", "Professor"]]
+    for cls in schedule_data:
+        table_data.append([
+            cls["courseName"], cls["courseNumber"], cls["crn"],
+            cls["days"], cls["time"], cls["location"], cls["professorName"]
+        ])
+
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.black),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+
+    create_calendar_plot(schedule_data, "calendar_plot.png")
+    from reportlab.platypus import Image
+    elements.append(Image("calendar_plot.png", width=500, height=300))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+def create_calendar_plot(classes, filename):
+    days_map = {'M': 0, 'T': 1, 'W': 2, 'R': 3, 'F': 4}
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.set_xlim(0, 5)
+    ax.set_ylim(7, 21)  # 7 AM to 9 PM
+    ax.set_xticks(range(5))
+    ax.set_xticklabels(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
+    ax.set_yticks(range(7, 22))
+    ax.set_yticklabels([f"{h}:00" for h in range(7, 22)])
+    ax.grid(True)
+    ax.invert_yaxis()
+
+    # Assign a unique color per courseNumber
+    color_choices = list(mcolors.TABLEAU_COLORS.values())
+    random.shuffle(color_choices)
+    course_colors = {}
+    color_index = 0
+
+    for cls in classes:
+        try:
+            course_number = cls["courseNumber"]
+            if course_number not in course_colors:
+                course_colors[course_number] = color_choices[color_index % len(color_choices)]
+                color_index += 1
+
+            color = course_colors[course_number]
+
+            start_time, end_time = cls["time"].split(" - ")
+            start_hour = convert_to_24hr(start_time)
+            end_hour = convert_to_24hr(end_time)
+
+            # Only show classes between 7AM and 9PM
+            if start_hour < 7 or end_hour > 21:
+                continue
+
+            for day in cls["days"]:
+                day_index = days_map.get(day)
+                if day_index is not None:
+                    ax.add_patch(plt.Rectangle(
+                        (day_index, start_hour),
+                        1, end_hour - start_hour,
+                        color=color, alpha=1.0, zorder=2
+                    ))
+                    ax.text(
+                        day_index + 0.5,
+                        start_hour + (end_hour - start_hour) / 2,
+                        f"{cls['courseNumber']}\n{cls['location']}",
+                        ha='center',
+                        va='center',
+                        fontsize=8,
+                        wrap=True
+                    )
+        except Exception as e:
+            print(f"Error plotting class {cls}: {e}")
+
+    plt.title("Weekly Calendar View")
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
+
+
+def convert_to_24hr(time_str):
+    from datetime import datetime
+    return datetime.strptime(time_str, "%I:%M%p").hour + datetime.strptime(time_str, "%I:%M%p").minute / 60
 
 
 def ai_maker(prompt, courses):
@@ -368,6 +479,16 @@ def generate_schedule():
     schedule = ai_maker(ai_prompt, courses)
 
     return jsonify(schedule)
+
+@app.route("/api/downloadSchedule", methods=['POST'])
+def downloadSchedule():
+    try:
+        schedule = request.json.get("schedule", [])
+        schedule = schedule['classes']
+        pdf_buffer = generate_schedule_pdf(schedule)
+        return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 
 if __name__ == '__main__':
