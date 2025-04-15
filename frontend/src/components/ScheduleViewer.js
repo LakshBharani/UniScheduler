@@ -6,13 +6,35 @@ import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 function ScheduleViewer({ schedule }) {
   const [downloadMessage, setDownloadMessage] = useState("");
   const [viewMode, setViewMode] = useState("table"); // 'table' or 'calendar'
+  const [crnColors, setCrnColors] = useState({});
+
+  React.useEffect(() => {
+    if (!schedule || !schedule.classes) return;
+  
+    const colors = [
+      "#FECACA", "#BFDBFE", "#BBF7D0", "#FEF08A", "#E9D5FF",
+      "#FBCFE8", "#C7D2FE", "#99F6E4", "#FED7AA", "#A5F3FC",
+      "#D9F99D", "#FDE68A", "#A7F3D0", "#DDD6FE", "#F5D0FE",
+    ];
+  
+    const crnColorMap = {};
+    schedule.classes.forEach((cls, index) => {
+      if (!crnColorMap[cls.crn]) {
+        crnColorMap[cls.crn] = colors[index % colors.length];
+      }
+    });
+  
+    setCrnColors(crnColorMap);
+  }, [schedule]);
+  
+  
 
   const handleDownloadSchedule = async () => {
     try {
       setDownloadMessage("Preparing download...");
       const response = await axios.post(
         "http://localhost:8080/api/downloadSchedule",
-        { schedule },
+        { schedule, crnColors },
         { responseType: "blob" } // assumes you're sending a file
       );
   
@@ -126,8 +148,9 @@ function ScheduleViewer({ schedule }) {
       ) : (
         <>
           <div className="mb-5">
-            <CalendarView schedule={schedule} />
+            <CalendarView schedule={schedule} setCrnColors={setCrnColors} />
           </div>
+
 
           {/* Online Courses Section */}
           {schedule.classes &&

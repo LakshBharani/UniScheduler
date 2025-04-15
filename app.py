@@ -25,7 +25,7 @@ CORS(app)
 load_dotenv()
 
 
-def generate_schedule_pdf(schedule_data):
+def generate_schedule_pdf(schedule_data, inputColors):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
@@ -51,7 +51,7 @@ def generate_schedule_pdf(schedule_data):
     elements.append(table)
     elements.append(Spacer(1, 20))
 
-    create_calendar_plot(schedule_data, "calendar_plot.png")
+    create_calendar_plot(schedule_data, inputColors, "calendar_plot.png")
     from reportlab.platypus import Image
     elements.append(Image("calendar_plot.png", width=500, height=300))
 
@@ -59,13 +59,14 @@ def generate_schedule_pdf(schedule_data):
     buffer.seek(0)
     return buffer
 
-def create_calendar_plot(classes, filename):
+def create_calendar_plot(classes, inputColors, filename):
     days_map = {'M': 0, 'T': 1, 'W': 2, 'R': 3, 'F': 4}
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.set_xlim(0, 5)
     ax.set_ylim(7, 21)  # 7 AM to 9 PM
     ax.set_xticks(range(5))
-    ax.set_xticklabels(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
+    for i, day in enumerate(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']):
+        ax.text(i + 0.5, 6.9, day, ha='center', va='bottom', fontsize=10, fontweight='bold')
     ax.set_yticks(range(7, 22))
     ax.set_yticklabels([f"{h}:00" for h in range(7, 22)])
     ax.grid(True)
@@ -81,7 +82,7 @@ def create_calendar_plot(classes, filename):
         try:
             course_number = cls["courseNumber"]
             if course_number not in course_colors:
-                course_colors[course_number] = color_choices[color_index % len(color_choices)]
+                course_colors[course_number] = mcolors.to_rgb(inputColors[cls['crn']])
                 color_index += 1
 
             color = course_colors[course_number]
@@ -114,8 +115,9 @@ def create_calendar_plot(classes, filename):
         except Exception as e:
             print(f"Error plotting class {cls}: {e}")
 
-    plt.title("Weekly Calendar View")
+    plt.title("Weekly Calendar View", pad=20)
     plt.tight_layout()
+    plt.subplots_adjust(top=0.90)
     plt.savefig(filename)
     plt.close()
 
@@ -485,7 +487,8 @@ def downloadSchedule():
     try:
         schedule = request.json.get("schedule", [])
         schedule = schedule['classes']
-        pdf_buffer = generate_schedule_pdf(schedule)
+        colorsV = request.json.get("crnColors")
+        pdf_buffer = generate_schedule_pdf(schedule, colorsV)
         return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
     except Exception as e:
         return {"error": str(e)}, 500

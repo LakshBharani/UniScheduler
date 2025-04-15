@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const CalendarView = ({ schedule }) => {
+const CalendarView = ({ schedule, setCrnColors }) => {
   const [selectedClass, setSelectedClass] = useState(null);
   const [hoveredClass, setHoveredClass] = useState(null);
 
