@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import CalendarView from "./CalendarView";
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
 function ScheduleViewer({ schedule }) {
   const [downloadMessage, setDownloadMessage] = useState("");
@@ -10,24 +10,34 @@ function ScheduleViewer({ schedule }) {
 
   React.useEffect(() => {
     if (!schedule || !schedule.classes) return;
-  
+
     const colors = [
-      "#FECACA", "#BFDBFE", "#BBF7D0", "#FEF08A", "#E9D5FF",
-      "#FBCFE8", "#C7D2FE", "#99F6E4", "#FED7AA", "#A5F3FC",
-      "#D9F99D", "#FDE68A", "#A7F3D0", "#DDD6FE", "#F5D0FE",
+      "#FECACA",
+      "#BFDBFE",
+      "#BBF7D0",
+      "#FEF08A",
+      "#E9D5FF",
+      "#FBCFE8",
+      "#C7D2FE",
+      "#99F6E4",
+      "#FED7AA",
+      "#A5F3FC",
+      "#D9F99D",
+      "#FDE68A",
+      "#A7F3D0",
+      "#DDD6FE",
+      "#F5D0FE",
     ];
-  
+
     const crnColorMap = {};
     schedule.classes.forEach((cls, index) => {
       if (!crnColorMap[cls.crn]) {
         crnColorMap[cls.crn] = colors[index % colors.length];
       }
     });
-  
+
     setCrnColors(crnColorMap);
   }, [schedule]);
-  
-  
 
   const handleDownloadSchedule = async () => {
     try {
@@ -37,7 +47,7 @@ function ScheduleViewer({ schedule }) {
         { schedule, crnColors },
         { responseType: "blob" } // assumes you're sending a file
       );
-  
+
       const blob = new Blob([response.data], {
         type: response.headers["content-type"],
       });
@@ -45,13 +55,12 @@ function ScheduleViewer({ schedule }) {
       link.href = window.URL.createObjectURL(blob);
       link.download = "schedule.pdf"; // or .csv / .xlsx as per your backend
       link.click();
-  
+
       setDownloadMessage("Download started.");
     } catch (err) {
       setDownloadMessage("Failed to download schedule.");
     }
   };
-  
 
   return (
     <div className="mt-5 bg-white p-5 border border-gray-300 rounded-md">
@@ -151,7 +160,6 @@ function ScheduleViewer({ schedule }) {
             <CalendarView schedule={schedule} setCrnColors={setCrnColors} />
           </div>
 
-
           {/* Online Courses Section */}
           {schedule.classes &&
             schedule.classes.some((cls) =>
@@ -207,7 +215,6 @@ function ScheduleViewer({ schedule }) {
             )}
         </>
       )}
-      
     </div>
   );
 }
