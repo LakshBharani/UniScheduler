@@ -54,10 +54,10 @@ def generate_schedule_pdf(schedule_data, inputColors):
     create_calendar_plot(schedule_data, inputColors, "calendar_plot.png")
     from reportlab.platypus import Image
     elements.append(Image("calendar_plot.png", width=500, height=300))
-    os.remove("calendar_plot.png")
 
     doc.build(elements)
     buffer.seek(0)
+    os.remove("calendar_plot.png")
     return buffer
 
 def create_calendar_plot(classes, inputColors, filename):
@@ -495,6 +495,7 @@ def downloadSchedule():
         pdf_buffer = generate_schedule_pdf(schedule, colorsV)
         return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
     except Exception as e:
+        print(e)
         return {"error": str(e)}, 500
 
 
