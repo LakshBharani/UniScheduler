@@ -11,6 +11,8 @@ function SchedulerForm({ onScheduleGenerated }) {
   const [loading, setLoading] = useState(false);
   const [selectedSemester, setSelectedSemester] = useState("");
   const [semesterOptions, setSemesterOptions] = useState([]);
+  const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
     // Generate semester options when component mounts
@@ -91,7 +93,7 @@ function SchedulerForm({ onScheduleGenerated }) {
         addCourse();
       }
     };
-  
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [courses]);
@@ -108,7 +110,28 @@ function SchedulerForm({ onScheduleGenerated }) {
 
     setError("");
     setLoading(true);
+    setProgress(0);
+    setStatusMessage("Validating inputs...");
+
     try {
+      // Simulate progress for validation (5%)
+      setProgress(5);
+      setStatusMessage("Fetching course data...");
+
+      // Calculate progress increment per course
+      const progressPerCourse = 40 / courses.length;
+
+      // Simulate progress for course data fetching (up to 45%)
+      for (let i = 0; i < courses.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+        setProgress((prev) => prev + progressPerCourse);
+        setStatusMessage(
+          `Fetching data for ${courses[i].department}${courses[i].number}...`
+        );
+      }
+
+      setStatusMessage("Generating schedule...");
+
       const response = await axios.post(
         "http://localhost:8080/api/generate_schedule",
         {
@@ -117,18 +140,30 @@ function SchedulerForm({ onScheduleGenerated }) {
           term_year: selectedSemester,
         }
       );
+
+      // Set progress to 90% after AI processing
+      setProgress(90);
+      setStatusMessage("Finalizing schedule...");
+
       if (response.data === "NO_VALID_SCHEDULE_FOUND") {
         setError(
           "No valid schedule found. Please try different courses or preferences."
         );
         onScheduleGenerated(null);
       } else {
+        setProgress(100);
+        setStatusMessage("Schedule generated successfully!");
         onScheduleGenerated(response.data);
       }
     } catch (err) {
       setError("Failed to generate schedule. Please try again.");
     } finally {
-      setLoading(false);
+      // Reset progress after a delay
+      setTimeout(() => {
+        setLoading(false);
+        setProgress(0);
+        setStatusMessage("");
+      }, 1000);
     }
   };
 
@@ -221,6 +256,9 @@ function SchedulerForm({ onScheduleGenerated }) {
         >
           Add Another Course
         </button>
+        <span className="ml-3 text-xs text-[#75787B] dark:text-gray-400">
+          Pro tip: Press Shift+Enter to quickly add a new course
+        </span>
       </div>
       <div className="mb-4">
         <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
@@ -231,12 +269,27 @@ function SchedulerForm({ onScheduleGenerated }) {
           onChange={(e) => setPreferences(e.target.value)}
           className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white resize-y"
           rows="2"
-          placeholder="e.g., No 8 AMs, prefer M/W classes"
+          placeholder="e.g., No classes before 10 AM, prefer afternoon classes on T/Th, need a lunch break between 12-1 PM, want classes close together"
         />
       </div>
       {error && (
         <p className="text-red-500 dark:text-red-400 text-xs mb-2">{error}</p>
       )}
+
+      {loading && (
+        <div className="mb-4">
+          <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#861F41] transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-sm text-[#75787B] dark:text-gray-400 mt-2">
+            {statusMessage}
+          </p>
+        </div>
+      )}
+
       <div>
         <button
           type="submit"

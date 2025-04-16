@@ -260,7 +260,9 @@ const CalendarView = ({ schedule, setCrnColors }) => {
                   </div>
                   <div className="flex items-start">
                     <span className="font-semibold w-12">Type:</span>
-                    <span className="flex-1">{hoveredClass.isLab ? "Lab" : "Lecture"}</span>
+                    <span className="flex-1">
+                      {hoveredClass.isLab ? "Lab" : "Lecture"}
+                    </span>
                   </div>
                 </div>
               </div>
