@@ -13,6 +13,7 @@ function SchedulerForm({ onScheduleGenerated }) {
   const [semesterOptions, setSemesterOptions] = useState([]);
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
 
   useEffect(() => {
     // Generate semester options when component mounts
@@ -100,6 +101,10 @@ function SchedulerForm({ onScheduleGenerated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!inviteCode.trim()) {
+      setError("Invite code is required.");
+      return;
+    }
     // Validate: Ensure department and course number fields are filled.
     for (let course of courses) {
       if (!course.department || !course.number) {
@@ -138,6 +143,7 @@ function SchedulerForm({ onScheduleGenerated }) {
           courses,
           preferences,
           term_year: selectedSemester,
+          invite_code: inviteCode.trim(),
         }
       );
 
@@ -156,7 +162,12 @@ function SchedulerForm({ onScheduleGenerated }) {
         onScheduleGenerated(response.data);
       }
     } catch (err) {
-      setError("Failed to generate schedule. Please try again.");
+      if (err.response?.status === 401) {
+        setError("Invalid invite code.");
+      } else {
+        setError("Failed to generate schedule. Please try again.");
+      }
+      onScheduleGenerated(null);
     } finally {
       // Reset progress after a delay
       setTimeout(() => {
@@ -272,6 +283,30 @@ function SchedulerForm({ onScheduleGenerated }) {
           placeholder="e.g., No classes before 10 AM, prefer afternoon classes on T/Th, need a lunch break between 12-1 PM, want classes close together"
         />
       </div>
+      <div className="mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-sm font-medium text-[#75787B] dark:text-gray-400">
+          Invite Code
+        </label>
+        <a
+          href="https://forms.gle/your-google-form-id" // replace with your actual form link
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Request Access
+        </a>
+      </div>
+
+        <input
+          type="text"
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
+          placeholder="Enter your invite code"
+          required
+        />
+      </div>
       {error && (
         <p className="text-red-500 dark:text-red-400 text-xs mb-2">{error}</p>
       )}
@@ -289,6 +324,7 @@ function SchedulerForm({ onScheduleGenerated }) {
           </p>
         </div>
       )}
+
 
       <div>
         <button

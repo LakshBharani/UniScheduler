@@ -18,11 +18,56 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import random
+from uuid import uuid4
+import ast
 
 
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
+
+json_doc_loc = "invite_codes.json"
+def load_json_file(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    return data
+
+def save_json_file(file_path, data):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+def verify_invite_code(code: str) -> bool:
+    data = load_json_file(json_doc_loc)
+    if code in data:
+        return True
+    else:
+        return False
+    
+def add_invite_code(username: str, password: str,name: str, email: str) -> str:
+    credentials_str = os.getenv("AUTHORIZED_USERS")
+    auth_users_credentials = ast.literal_eval(credentials_str)
+    if username not in auth_users_credentials or password != auth_users_credentials[username]:
+        return "0"
+    data = load_json_file(json_doc_loc)
+    code = str(uuid4())
+    while code in data:
+        code = str(uuid4())
+    data[code] = {"name": name, "email": email}
+    save_json_file(json_doc_loc, data)
+    return code
+
+def remove_invite_code(code: str, username: str, password: str) -> bool:
+    data = load_json_file(json_doc_loc)
+    credentials_str = os.getenv("AUTHORIZED_USERS")
+    auth_users_credentials = ast.literal_eval(credentials_str)
+    if username not in auth_users_credentials or password != auth_users_credentials[username]:
+        return False
+    if code in data:
+        del data[code]
+        save_json_file(json_doc_loc, data)
+        return True
+    else:
+        return False
 
 
 def generate_schedule_pdf(schedule_data, inputColors):
@@ -133,7 +178,7 @@ def ai_maker(prompt, courses):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.0-flash"
+    model = "gemini-2.5-pro-exp-03-25"
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
 
@@ -472,6 +517,11 @@ def generate_schedule():
     data = request.json
     courses = data.get("courses", [])
     preferences = data.get("preferences", "")
+    invite_code = data.get("invite_code", "")
+    print(invite_code)
+    if not verify_invite_code(invite_code):
+        print("Invalid invite code")
+        return jsonify({"error": "Invalid invite code"}), 401
     ai_prompt = ""
     ai_prompt += f"<preferences_by_user>\n{preferences}\n</preferences_by_user>\n"
     for course in courses:
@@ -497,6 +547,33 @@ def downloadSchedule():
     except Exception as e:
         print(e)
         return {"error": str(e)}, 500
+    
+@app.route("/api/add_invite_code", methods=['POST'])
+def add_invite_code_route():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    name = data.get("name")
+    email = data.get("email")
+    if not username or not password or not name or not email:
+        return jsonify({"error": "Name and email are required"}), 400
+    code = add_invite_code(username=username,password=password,name=name, email=email)
+    if code == "0":
+        return jsonify({"error": "Invalid username or password"}), 401
+    return jsonify({"code": code}), 200
+
+@app.route("/api/remove_invite_code", methods=['POST'])
+def remove_invite_code_route():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    code = data.get("code")
+    if not code:
+        return jsonify({"error": "Code is required"}), 400
+    if remove_invite_code(code, username=username, password=password):
+        return jsonify({"message": "Code removed successfully"}), 200
+    else:
+        return jsonify({"error": "Code not found"}), 404
 
 
 if __name__ == '__main__':
