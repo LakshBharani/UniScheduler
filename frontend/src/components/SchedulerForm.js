@@ -289,7 +289,7 @@ function SchedulerForm({ onScheduleGenerated }) {
           Invite Code
         </label>
         <a
-          href="https://forms.gle/your-google-form-id" // replace with your actual form link
+          href="https://docs.google.com/forms/d/e/1FAIpQLSdwDxhJoyXvhEWJP5A3CXFoyRZ7xyRhyIQv2B392RWrVmJjNw/viewform?usp=dialog" // replace with your actual form link
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-blue-600 hover:underline dark:text-blue-400"
