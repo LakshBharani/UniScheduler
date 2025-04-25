@@ -221,6 +221,7 @@ function SchedulerForm({ onScheduleGenerated }) {
                 onChange={(e) => handleCourseChange(index, e)}
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
                 required
+                placeholder="CS"
               />
             </div>
             <div className="flex-1 min-w-[120px]">
@@ -234,18 +235,7 @@ function SchedulerForm({ onScheduleGenerated }) {
                 onChange={(e) => handleCourseChange(index, e)}
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
                 required
-              />
-            </div>
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
-                Professor (Optional)
-              </label>
-              <input
-                type="text"
-                name="professor"
-                value={course.professor}
-                onChange={(e) => handleCourseChange(index, e)}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
+                placeholder="1114"
               />
             </div>
             <button
@@ -284,19 +274,19 @@ function SchedulerForm({ onScheduleGenerated }) {
         />
       </div>
       <div className="mb-4">
-      <div className="flex items-center justify-between mb-1">
-        <label className="text-sm font-medium text-[#75787B] dark:text-gray-400">
-          Invite Code
-        </label>
-        <a
-          href="https://docs.google.com/forms/d/e/1FAIpQLSdwDxhJoyXvhEWJP5A3CXFoyRZ7xyRhyIQv2B392RWrVmJjNw/viewform?usp=dialog" // replace with your actual form link
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-        >
-          Request Access
-        </a>
-      </div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium text-[#75787B] dark:text-gray-400">
+            Invite Code
+          </label>
+          <a
+            href="https://docs.google.com/forms/d/e/1FAIpQLSdwDxhJoyXvhEWJP5A3CXFoyRZ7xyRhyIQv2B392RWrVmJjNw/viewform?usp=dialog" // replace with your actual form link
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Request Access
+          </a>
+        </div>
 
         <input
           type="text"
