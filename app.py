@@ -1,3 +1,8 @@
+import ast
+from uuid import uuid4
+import random
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from bs4 import BeautifulSoup
@@ -15,11 +20,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 import io
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import random
-from uuid import uuid4
-import ast
 
 
 app = Flask(__name__)
@@ -27,14 +27,18 @@ CORS(app)
 load_dotenv()
 
 json_doc_loc = "invite_codes.json"
+
+
 def load_json_file(file_path):
     with open(file_path, 'r') as file:
         data = json.load(file)
     return data
 
+
 def save_json_file(file_path, data):
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
+
 
 def verify_invite_code(code: str) -> bool:
     data = load_json_file(json_doc_loc)
@@ -42,8 +46,9 @@ def verify_invite_code(code: str) -> bool:
         return True
     else:
         return False
-    
-def add_invite_code(username: str, password: str,name: str, email: str) -> str:
+
+
+def add_invite_code(username: str, password: str, name: str, email: str) -> str:
     credentials_str = os.getenv("AUTHORIZED_USERS")
     auth_users_credentials = ast.literal_eval(credentials_str)
     if username not in auth_users_credentials or password != auth_users_credentials[username]:
@@ -55,6 +60,7 @@ def add_invite_code(username: str, password: str,name: str, email: str) -> str:
     data[code] = {"name": name, "email": email}
     save_json_file(json_doc_loc, data)
     return code
+
 
 def remove_invite_code(code: str, username: str, password: str) -> bool:
     data = load_json_file(json_doc_loc)
@@ -78,7 +84,8 @@ def generate_schedule_pdf(schedule_data, inputColors):
     elements.append(Paragraph("Course Schedule", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-    table_data = [["Course", "Number", "CRN", "Day", "Time", "Location", "Professor"]]
+    table_data = [["Course", "Number", "CRN",
+                   "Day", "Time", "Location", "Professor"]]
     for cls in schedule_data:
         table_data.append([
             cls["courseName"], cls["courseNumber"], cls["crn"],
@@ -87,11 +94,11 @@ def generate_schedule_pdf(schedule_data, inputColors):
 
     table = Table(table_data, repeatRows=1)
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.black),
-        ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(table)
     elements.append(Spacer(1, 20))
@@ -105,6 +112,7 @@ def generate_schedule_pdf(schedule_data, inputColors):
     os.remove("calendar_plot.png")
     return buffer
 
+
 def create_calendar_plot(classes, inputColors, filename):
     days_map = {'M': 0, 'T': 1, 'W': 2, 'R': 3, 'F': 4}
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -112,7 +120,8 @@ def create_calendar_plot(classes, inputColors, filename):
     ax.set_ylim(7, 21)  # 7 AM to 9 PM
     ax.set_xticks(range(5))
     for i, day in enumerate(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']):
-        ax.text(i + 0.5, 6.9, day, ha='center', va='bottom', fontsize=10, fontweight='bold')
+        ax.text(i + 0.5, 6.9, day, ha='center',
+                va='bottom', fontsize=10, fontweight='bold')
     ax.set_yticks(range(7, 22))
     ax.set_yticklabels([f"{h}:00" for h in range(7, 22)])
     ax.grid(True)
@@ -128,7 +137,8 @@ def create_calendar_plot(classes, inputColors, filename):
         try:
             course_number = cls["courseNumber"]
             if course_number not in course_colors:
-                course_colors[course_number] = mcolors.to_rgb(inputColors[cls['crn']])
+                course_colors[course_number] = mcolors.to_rgb(
+                    inputColors[cls['crn']])
                 color_index += 1
 
             color = course_colors[course_number]
@@ -226,7 +236,7 @@ def ai_maker(prompt, courses):
                                     type=genai.types.Type.STRING,
                                 ),
                                 "isLab": genai.types.Schema(
-                                    type = genai.types.Type.BOOLEAN,
+                                    type=genai.types.Type.BOOLEAN,
                                 ),
                             },
                         ),
@@ -238,6 +248,7 @@ def ai_maker(prompt, courses):
 You are a virtual timetable generator.
 !!! IMPORTANT !!!
 IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED.
+
 
 🚨 CRITICAL FORMAT REQUIREMENT:
 - Course codes MUST be in the format: DEPARTMENTNUMBER (e.g., "ENGL1106", "CS2114")
@@ -536,6 +547,7 @@ def generate_schedule():
 
     return jsonify(schedule)
 
+
 @app.route("/api/downloadSchedule", methods=['POST'])
 def downloadSchedule():
     try:
@@ -547,7 +559,8 @@ def downloadSchedule():
     except Exception as e:
         print(e)
         return {"error": str(e)}, 500
-    
+
+
 @app.route("/api/add_invite_code", methods=['POST'])
 def add_invite_code_route():
     data = request.json
@@ -557,10 +570,12 @@ def add_invite_code_route():
     email = data.get("email")
     if not username or not password or not name or not email:
         return jsonify({"error": "Name and email are required"}), 400
-    code = add_invite_code(username=username,password=password,name=name, email=email)
+    code = add_invite_code(
+        username=username, password=password, name=name, email=email)
     if code == "0":
         return jsonify({"error": "Invalid username or password"}), 401
     return jsonify({"code": code}), 200
+
 
 @app.route("/api/remove_invite_code", methods=['POST'])
 def remove_invite_code_route():
