@@ -43,15 +43,25 @@ def verify_invite_code(code: str) -> bool:
     else:
         return False
     
-def add_invite_code(username: str, password: str,name: str, email: str) -> str:
+def add_invite_code(username: str, password: str, name: str, email: str) -> str:
     credentials_str = os.getenv("AUTHORIZED_USERS")
     auth_users_credentials = ast.literal_eval(credentials_str)
+    
     if username not in auth_users_credentials or password != auth_users_credentials[username]:
         return "0"
+    
     data = load_json_file(json_doc_loc)
+
+    # Check if email already exists
+    for code, info in data.items():
+        if info.get("email") == email:
+            return code  # Return existing code if email matches
+
+    # Otherwise, create a new code
     code = str(uuid4())
     while code in data:
         code = str(uuid4())
+    
     data[code] = {"name": name, "email": email}
     save_json_file(json_doc_loc, data)
     return code
@@ -577,4 +587,4 @@ def remove_invite_code_route():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    app.run(debug=True, host="0.0.0.0", port=8080)
