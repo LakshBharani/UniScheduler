@@ -274,28 +274,42 @@ function SchedulerForm({ onScheduleGenerated }) {
         />
       </div>
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-[#75787B] dark:text-gray-400">
             Invite Code
           </label>
           <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSdwDxhJoyXvhEWJP5A3CXFoyRZ7xyRhyIQv2B392RWrVmJjNw/viewform?usp=dialog" // replace with your actual form link
+            href="https://docs.google.com/forms/d/e/1FAIpQLSdwDxhJoyXvhEWJP5A3CXFoyRZ7xyRhyIQv2B392RWrVmJjNw/viewform?usp=dialog"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+            className="text-sm text-[#861F41] hover:text-[#6B1934] dark:text-[#E5751F] dark:hover:text-[#D46A1C] font-medium flex items-center gap-1.5 transition-colors"
           >
-            Request Access
+            <span>Request Access</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3.5 w-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
           </a>
         </div>
 
-        <input
-          type="text"
-          value={inviteCode}
-          onChange={(e) => setInviteCode(e.target.value)}
-          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
-          placeholder="Enter your invite code"
-          required
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
+            placeholder="Enter access code or request one above"
+            required
+          />
+        </div>
       </div>
       {error && (
         <p className="text-red-500 dark:text-red-400 text-xs mb-2">{error}</p>
