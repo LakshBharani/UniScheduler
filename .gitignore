@@ -135,4 +135,5 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .env
+!/frontend/.env
 invite_codes.json
