@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { TrashIcon } from "@heroicons/react/24/solid";
 
+// Get API host from environment variable or use default
+const API_HOST = process.env.REACT_APP_API_HOST || "http://localhost:8080";
+
 function SchedulerForm({ onScheduleGenerated }) {
   const [courses, setCourses] = useState([
     { department: "", number: "", professor: "" },
@@ -137,15 +140,12 @@ function SchedulerForm({ onScheduleGenerated }) {
 
       setStatusMessage("Generating schedule...");
 
-      const response = await axios.post(
-        "http://localhost:8080/api/generate_schedule",
-        {
-          courses,
-          preferences,
-          term_year: selectedSemester,
-          invite_code: inviteCode.trim(),
-        }
-      );
+      const response = await axios.post(`${API_HOST}/api/generate_schedule`, {
+        courses,
+        preferences,
+        term_year: selectedSemester,
+        invite_code: inviteCode.trim(),
+      });
 
       // Set progress to 90% after AI processing
       setProgress(90);
@@ -324,7 +324,6 @@ function SchedulerForm({ onScheduleGenerated }) {
           </p>
         </div>
       )}
-
 
       <div>
         <button

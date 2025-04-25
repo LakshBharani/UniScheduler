@@ -3,6 +3,9 @@ import axios from "axios";
 import CalendarView from "./CalendarView";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
+// Get API host from environment variable or use default
+const API_HOST = process.env.REACT_APP_API_HOST || "http://localhost:8080";
+
 function ScheduleViewer({ schedule }) {
   const [downloadMessage, setDownloadMessage] = useState("");
   const [viewMode, setViewMode] = useState("table"); // 'table' or 'calendar'
@@ -42,10 +45,36 @@ function ScheduleViewer({ schedule }) {
   const handleDownloadSchedule = async () => {
     try {
       setDownloadMessage("Preparing download...");
+
+      // Validate schedule data
+      if (!schedule || !schedule.classes || schedule.classes.length === 0) {
+        setDownloadMessage("Error: No schedule data to download");
+        return;
+      }
+
+      // Convert color hex values to RGB format for matplotlib
+      const colorMapping = {};
+      Object.keys(crnColors).forEach((crn) => {
+        const hex = crnColors[crn].replace("#", "");
+        const r = parseInt(hex.substring(0, 2), 16) / 255;
+        const g = parseInt(hex.substring(2, 4), 16) / 255;
+        const b = parseInt(hex.substring(4, 6), 16) / 255;
+        colorMapping[crn] = [r, g, b];
+      });
+
       const response = await axios.post(
-        "http://localhost:8080/api/downloadSchedule",
-        { schedule, crnColors },
-        { responseType: "blob" } // assumes you're sending a file
+        `${API_HOST}/api/downloadSchedule`,
+        {
+          schedule,
+          crnColors: colorMapping,
+        },
+        {
+          responseType: "blob",
+          timeout: 15000, // 15 second timeout
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
       const blob = new Blob([response.data], {
