@@ -198,7 +198,7 @@ def ai_maker(prompt, courses):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.0-flash"
+    model = "gemini-2.5-flash-preview-04-17"
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
 
