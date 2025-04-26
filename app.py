@@ -46,15 +46,15 @@ def verify_invite_code(code: str) -> bool:
         return True
     else:
         return False
-    
+
 
 def add_invite_code(username: str, password: str, name: str, email: str) -> str:
     credentials_str = os.getenv("AUTHORIZED_USERS")
     auth_users_credentials = ast.literal_eval(credentials_str)
-    
+
     if username not in auth_users_credentials or password != auth_users_credentials[username]:
         return "0"
-    
+
     data = load_json_file(json_doc_loc)
 
     # Check if email already exists
@@ -66,7 +66,7 @@ def add_invite_code(username: str, password: str, name: str, email: str) -> str:
     code = str(uuid4())
     while code in data:
         code = str(uuid4())
-    
+
     data[code] = {"name": name, "email": email}
     save_json_file(json_doc_loc, data)
     return code
@@ -198,7 +198,7 @@ def ai_maker(prompt, courses):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.0-flash"
+    model = "gemini-2.5-flash-preview-04-17"
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
 
