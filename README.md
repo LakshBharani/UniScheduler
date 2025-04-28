@@ -1,4 +1,4 @@
-# 🦃 VT Hokie Scheduler (AI-Powered Replacement)
+# 🦃 UniScheduler
 
 A modern, intelligent course scheduling platform built for Virginia Tech students. This project reimagines the original Hokie Scheduler by combining an intuitive React-based frontend, a robust Flask backend, and smart scheduling logic powered by Google's Gemini API.
 
@@ -6,7 +6,7 @@ A modern, intelligent course scheduling platform built for Virginia Tech student
 
 ## 🎯 Overview
 
-VT Hokie Scheduler helps students create optimal class schedules based on personal preferences like class codes, professor choices, and custom time constraints. With natural language support, students can simply type requests like:
+UniScheduler helps students create optimal class schedules based on personal preferences like class codes, professor choices, and custom time constraints. With natural language support, students can simply type requests like:
 
 > "Don't give me too many classes on Monday"  
 > "Prefer no morning classes before 10am"  
@@ -53,8 +53,8 @@ and the system will intelligently generate a personalized schedule using Gemini.
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/vt-hokie-scheduler.git
-cd vt-hokie-scheduler
+git clone https://github.com/AnjanB3012/UniScheduler
+cd UniScheduler
 ```
 2. Frontend Setup
 ```bash
@@ -64,7 +64,6 @@ npm start
 ```
 3. Backend Setup
 ```bash
-cd backend
 pip install -r requirements.txt
 python app.py
 ```
