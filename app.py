@@ -200,7 +200,7 @@ def create_calendar_plot(classes, inputColors, filename):
                         wrap=True
                     )
         except Exception as e:
-            print(f"Error plotting class {cls}: {e}")
+            save_log_entry(message=f"Error plotting class {cls}: {e}")
 
     plt.title("Weekly Calendar View", pad=20)
     plt.tight_layout()
@@ -383,8 +383,7 @@ BEFORE RETURNING ANY SCHEDULE:
                     scheduled_courses.add(course_number)
 
                 if requested_courses != scheduled_courses:
-                    print(
-                        f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
+                    print(f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
                     retry_count += 1
                     continue
 
@@ -589,7 +588,7 @@ def downloadSchedule():
         pdf_buffer = generate_schedule_pdf(schedule, colorsV)
         return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
     except Exception as e:
-        print(e)
+        save_log_entry(message=e)
         return {"error": str(e)}, 500
 
 
