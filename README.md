@@ -1,7 +1,6 @@
 # 🦃 UniScheduler
 
-A modern, intelligent course scheduling platform built for students. This project reimagines the original Hokie Scheduler by combining an intuitive React-based frontend, a robust Flask backend, and smart scheduling logic powered by Google's Gemini API.
-
+A modern, intelligent course scheduling platform built for students. This project is developed by combining an intuitive React-based frontend, a robust Flask backend, and smart scheduling logic powered by Google's Gemini API.
 ---
 
 ## 🎯 Overview
