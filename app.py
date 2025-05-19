@@ -20,6 +20,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 import io
 import matplotlib
 matplotlib.use('Agg')
+from datetime import datetime, timezone
 
 
 app = Flask(__name__)
@@ -27,6 +28,21 @@ CORS(app)
 load_dotenv()
 
 json_doc_loc = "invite_codes.json"
+
+log_file = "server_logs.json"
+if not os.path.exists(log_file):
+    with open(log_file, 'w') as f:
+        json.dump([], f)
+
+def save_log_entry(timestamp = datetime.now(timezone.utc), message = ""):
+    log_entry = {
+        timestamp.isoformat(): message
+    }
+    with open(log_file, 'r+') as f:
+        logs = json.load(f)
+        logs.append(log_entry)
+        f.seek(0)
+        json.dump(logs, f, indent=4)
 
 
 def load_json_file(file_path):
@@ -69,6 +85,7 @@ def add_invite_code(username: str, password: str, name: str, email: str) -> str:
 
     data[code] = {"name": name, "email": email}
     save_json_file(json_doc_loc, data)
+    save_log_entry(message=f"New invite code generated for {name} ({email}) with code {code}")
     return code
 
 
@@ -87,40 +104,44 @@ def remove_invite_code(code: str, username: str, password: str) -> bool:
 
 
 def generate_schedule_pdf(schedule_data, inputColors):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
-    elements = []
-    elements.append(Paragraph("Course Schedule", styles["Title"]))
-    elements.append(Spacer(1, 12))
+    try:
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        elements = []
+        elements.append(Paragraph("Course Schedule", styles["Title"]))
+        elements.append(Spacer(1, 12))
 
-    table_data = [["Course", "Number", "CRN",
-                   "Day", "Time", "Location", "Professor"]]
-    for cls in schedule_data:
-        table_data.append([
-            cls["courseName"], cls["courseNumber"], cls["crn"],
-            cls["days"], cls["time"], cls["location"], cls["professorName"]
-        ])
+        table_data = [["Course", "Number", "CRN",
+                    "Day", "Time", "Location", "Professor"]]
+        for cls in schedule_data:
+            table_data.append([
+                cls["courseName"], cls["courseNumber"], cls["crn"],
+                cls["days"], cls["time"], cls["location"], cls["professorName"]
+            ])
 
-    table = Table(table_data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-    ]))
-    elements.append(table)
-    elements.append(Spacer(1, 20))
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 20))
 
-    create_calendar_plot(schedule_data, inputColors, "calendar_plot.png")
-    from reportlab.platypus import Image
-    elements.append(Image("calendar_plot.png", width=500, height=300))
+        create_calendar_plot(schedule_data, inputColors, "calendar_plot.png")
+        from reportlab.platypus import Image
+        elements.append(Image("calendar_plot.png", width=500, height=300))
 
-    doc.build(elements)
-    buffer.seek(0)
-    os.remove("calendar_plot.png")
-    return buffer
+        doc.build(elements)
+        buffer.seek(0)
+        os.remove("calendar_plot.png")
+        save_log_entry(message="PDF generated successfully")
+        return buffer
+    except Exception as e:
+        save_log_entry(message=f"Error generating PDF: {str(e)}")
 
 
 def create_calendar_plot(classes, inputColors, filename):
@@ -179,7 +200,7 @@ def create_calendar_plot(classes, inputColors, filename):
                         wrap=True
                     )
         except Exception as e:
-            print(f"Error plotting class {cls}: {e}")
+            save_log_entry(message=f"Error plotting class {cls}: {e}")
 
     plt.title("Weekly Calendar View", pad=20)
     plt.tight_layout()
@@ -189,7 +210,6 @@ def create_calendar_plot(classes, inputColors, filename):
 
 
 def convert_to_24hr(time_str):
-    from datetime import datetime
     return datetime.strptime(time_str, "%I:%M%p").hour + datetime.strptime(time_str, "%I:%M%p").minute / 60
 
 
@@ -363,8 +383,7 @@ BEFORE RETURNING ANY SCHEDULE:
                     scheduled_courses.add(course_number)
 
                 if requested_courses != scheduled_courses:
-                    print(
-                        f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
+                    print(f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
                     retry_count += 1
                     continue
 
@@ -427,8 +446,7 @@ BEFORE RETURNING ANY SCHEDULE:
                                 "course": cls["courseNumber"]
                             })
                     except Exception as e:
-                        print(
-                            f"Error processing class {cls['courseNumber']}: {str(e)}")
+                        save_log_entry(message=f"Error processing class {cls['courseNumber']}: {str(e)}")
                         continue
 
                 # Check for overlaps in each day
@@ -463,7 +481,7 @@ BEFORE RETURNING ANY SCHEDULE:
                 return response_dict
 
         except json.JSONDecodeError:
-            print("Invalid JSON response, retrying...")
+            save_log_entry(message="Invalid JSON response, retrying...")
             retry_count += 1
             continue
 
@@ -472,65 +490,68 @@ BEFORE RETURNING ANY SCHEDULE:
 
 
 def courseDetailsExractor(department: str, coursenumber, term_year: str):
-    url = "https://selfservice.banner.vt.edu/ssb/HZSKVTSC.P_ProcRequest"
-    form_data = {
-        "CAMPUS": "0",
-        "TERMYEAR": term_year,
-        "CORE_CODE": "AR%",
-        "subj_code": department.upper(),
-        "SCHDTYPE": "%",
-        "CRSE_NUMBER": coursenumber,
-        "crn": "",
-        "open_only": "",
-        "disp_comments_in": "Y",
-        "sess_code": "%",
-        "BTN_PRESSED": "FIND class sections",
-        "inst_name": ""
-    }
-    response = requests.post(url=url, data=form_data)
-    html = response.text
-    soup = BeautifulSoup(html, 'html.parser')
-    courses_data = []
-    rows = soup.find_all('tr')
-    for row in rows:
-        crn_cell = row.find('a', href=lambda x: x and 'CRN=' in x)
-        if not crn_cell:
-            continue
-        cells = row.find_all('td')
-        if len(cells) < 12:
-            continue
-        crn = crn_cell.find('b').text.strip() if crn_cell.find('b') else ""
-        course_cell = cells[1]
-        course = course_cell.text.strip()
-        title = cells[2].text.strip()
-        schedule_type = cells[3].text.strip()
-        modality = cells[4].text.strip()
-        cr_hrs = cells[5].text.strip()
-        capacity = cells[6].text.strip()
-        instructor = cells[7].text.strip()
-        days = cells[8].text.strip()
-        begin_time = cells[9].text.strip()
-        end_time = cells[10].text.strip()
-        location = cells[11].text.strip()
-        exam_cell = cells[12] if len(cells) > 12 else None
-        exam_code = exam_cell.find('a').text.strip(
-        ) if exam_cell and exam_cell.find('a') else ""
-        courses_data.append({
-            'CRN': crn,
-            'Course': course,
-            'Title': title,
-            'Schedule Type': schedule_type,
-            'Modality': modality,
-            'Credit Hours': cr_hrs,
-            'Capacity': capacity,
-            'Instructor': instructor,
-            'Days': days,
-            'Begin Time': begin_time,
-            'End Time': end_time,
-            'Location': location,
-            'Exam Code': exam_code
-        })
-    return pd.DataFrame(courses_data)
+    try:
+        url = "https://selfservice.banner.vt.edu/ssb/HZSKVTSC.P_ProcRequest"
+        form_data = {
+            "CAMPUS": "0",
+            "TERMYEAR": term_year,
+            "CORE_CODE": "AR%",
+            "subj_code": department.upper(),
+            "SCHDTYPE": "%",
+            "CRSE_NUMBER": coursenumber,
+            "crn": "",
+            "open_only": "",
+            "disp_comments_in": "Y",
+            "sess_code": "%",
+            "BTN_PRESSED": "FIND class sections",
+            "inst_name": ""
+        }
+        response = requests.post(url=url, data=form_data)
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
+        courses_data = []
+        rows = soup.find_all('tr')
+        for row in rows:
+            crn_cell = row.find('a', href=lambda x: x and 'CRN=' in x)
+            if not crn_cell:
+                continue
+            cells = row.find_all('td')
+            if len(cells) < 12:
+                continue
+            crn = crn_cell.find('b').text.strip() if crn_cell.find('b') else ""
+            course_cell = cells[1]
+            course = course_cell.text.strip()
+            title = cells[2].text.strip()
+            schedule_type = cells[3].text.strip()
+            modality = cells[4].text.strip()
+            cr_hrs = cells[5].text.strip()
+            capacity = cells[6].text.strip()
+            instructor = cells[7].text.strip()
+            days = cells[8].text.strip()
+            begin_time = cells[9].text.strip()
+            end_time = cells[10].text.strip()
+            location = cells[11].text.strip()
+            exam_cell = cells[12] if len(cells) > 12 else None
+            exam_code = exam_cell.find('a').text.strip(
+            ) if exam_cell and exam_cell.find('a') else ""
+            courses_data.append({
+                'CRN': crn,
+                'Course': course,
+                'Title': title,
+                'Schedule Type': schedule_type,
+                'Modality': modality,
+                'Credit Hours': cr_hrs,
+                'Capacity': capacity,
+                'Instructor': instructor,
+                'Days': days,
+                'Begin Time': begin_time,
+                'End Time': end_time,
+                'Location': location,
+                'Exam Code': exam_code
+            })
+        return pd.DataFrame(courses_data)
+    except Exception as e:
+        save_log_entry(message=f"Error extracting course details: {str(e)}")
 
 
 @app.route("/api/generate_schedule", methods=['POST'])
@@ -554,7 +575,7 @@ def generate_schedule():
         ai_prompt += df.to_csv(index=False)
         ai_prompt += "\n</timetable_of_classes_for_the_course>"
     schedule = ai_maker(ai_prompt, courses)
-
+    save_log_entry(message=f"AI schedule generation completed for invite code {invite_code} with {len(schedule['classes'])} classes")
     return jsonify(schedule)
 
 
@@ -567,7 +588,7 @@ def downloadSchedule():
         pdf_buffer = generate_schedule_pdf(schedule, colorsV)
         return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
     except Exception as e:
-        print(e)
+        save_log_entry(message=e)
         return {"error": str(e)}, 500
 
 
@@ -600,6 +621,14 @@ def remove_invite_code_route():
     else:
         return jsonify({"error": "Code not found"}), 404
 
+@app.route("/api/get_logs", methods=['GET'])
+def get_logs():
+    try:
+        with open(log_file, 'r') as f:
+            logs = json.load(f)
+        return jsonify(logs), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=8080)
