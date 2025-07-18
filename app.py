@@ -611,11 +611,25 @@ def downloadSchedule():
         return {"error": str(e)}, 500
 
 
-@app.route("/api/get_logs", methods=['GET'])
+@app.route("/api/get_logs", methods=['POST'])
 def get_logs():
     try:
+        data = request.json
+        username = data.get("username", None)
+        password = data.get("password", None)
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+        # Load users from security_config.json
+        with open("security_config.json", 'r') as sec_file:
+            sec_data = json.load(sec_file)
+            users = sec_data.get("users", [])
+        # Check if user exists and password matches
+        authorized = any(u["username"] == username and u["password"] == password for u in users)
+        if not authorized:
+            return jsonify({"error": "Unauthorized"}), 401
         with open(log_file, 'r') as f:
             logs = json.load(f)
+        logs = logs[-10:] if len(logs) > 10 else logs
         return jsonify(logs), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
