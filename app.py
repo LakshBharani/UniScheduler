@@ -218,7 +218,7 @@ def ai_maker(prompt, courses):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.5-pro-exp-03-25"
+    model = "gemini-2.5-pro"
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
 
@@ -559,11 +559,7 @@ def generate_schedule():
     data = request.json
     courses = data.get("courses", [])
     preferences = data.get("preferences", "")
-    invite_code = data.get("invite_code", "")
-    print(invite_code)
-    if not verify_invite_code(invite_code):
-        print("Invalid invite code")
-        return jsonify({"error": "Invalid invite code"}), 401
+    email = data.get("email", None)
     ai_prompt = ""
     ai_prompt += f"<preferences_by_user>\n{preferences}\n</preferences_by_user>\n"
     for course in courses:
@@ -575,7 +571,10 @@ def generate_schedule():
         ai_prompt += df.to_csv(index=False)
         ai_prompt += "\n</timetable_of_classes_for_the_course>"
     schedule = ai_maker(ai_prompt, courses)
-    save_log_entry(message=f"AI schedule generation completed for invite code {invite_code} with {len(schedule['classes'])} classes")
+    log_msg = f"AI schedule generation completed with {len(schedule['classes'])} classes"
+    if email:
+        log_msg += f" | email: {email}"
+    save_log_entry(message=log_msg)
     return jsonify(schedule)
 
 
@@ -586,40 +585,12 @@ def downloadSchedule():
         schedule = schedule['classes']
         colorsV = request.json.get("crnColors")
         pdf_buffer = generate_schedule_pdf(schedule, colorsV)
+        save_log_entry(message="PDF generated successfully")
         return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
     except Exception as e:
         save_log_entry(message=e)
         return {"error": str(e)}, 500
 
-
-@app.route("/api/add_invite_code", methods=['POST'])
-def add_invite_code_route():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    name = data.get("name")
-    email = data.get("email")
-    if not username or not password or not name or not email:
-        return jsonify({"error": "Name and email are required"}), 400
-    code = add_invite_code(
-        username=username, password=password, name=name, email=email)
-    if code == "0":
-        return jsonify({"error": "Invalid username or password"}), 401
-    return jsonify({"code": code}), 200
-
-
-@app.route("/api/remove_invite_code", methods=['POST'])
-def remove_invite_code_route():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    code = data.get("code")
-    if not code:
-        return jsonify({"error": "Code is required"}), 400
-    if remove_invite_code(code, username=username, password=password):
-        return jsonify({"message": "Code removed successfully"}), 200
-    else:
-        return jsonify({"error": "Code not found"}), 404
 
 @app.route("/api/get_logs", methods=['GET'])
 def get_logs():
