@@ -34,6 +34,12 @@ if not os.path.exists(log_file):
     with open(log_file, 'w') as f:
         json.dump([], f)
 
+# Token total file for running total
+TOKEN_TOTAL_FILE = "token_total.json"
+if not os.path.exists(TOKEN_TOTAL_FILE):
+    with open(TOKEN_TOTAL_FILE, 'w') as f:
+        json.dump({"total_tokens": 0}, f)
+
 def save_log_entry(timestamp = datetime.now(timezone.utc), message = ""):
     log_entry = {
         timestamp.isoformat(): message
@@ -213,14 +219,26 @@ def convert_to_24hr(time_str):
     return datetime.strptime(time_str, "%I:%M%p").hour + datetime.strptime(time_str, "%I:%M%p").minute / 60
 
 
+def get_total_tokens():
+    with open(TOKEN_TOTAL_FILE, 'r') as f:
+        data = json.load(f)
+    return data.get("total_tokens", 0)
+
+def update_total_tokens(tokens):
+    total = get_total_tokens() + tokens
+    with open(TOKEN_TOTAL_FILE, 'w') as f:
+        json.dump({"total_tokens": total}, f)
+    return total
+
 def ai_maker(prompt, courses):
     client = genai.Client(
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.5-pro"
+    model = os.getenv("GEMINI_MODEL")
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
+    total_tokens = 0
 
     while retry_count < max_retries:
         contents = [
@@ -352,7 +370,6 @@ BEFORE RETURNING ANY SCHEDULE:
         )
 
         responseText = ""
-        total_tokens = 0
         for chunk in client.models.generate_content_stream(
             model=model,
             contents=contents,
@@ -472,13 +489,13 @@ BEFORE RETURNING ANY SCHEDULE:
                         break
 
                 if not has_overlap:
-                    return response_dict
+                    return response_dict, total_tokens
                 else:
                     print("Overlap detected, retrying...")
                     retry_count += 1
                     continue
             else:
-                return response_dict
+                return response_dict, total_tokens
 
         except json.JSONDecodeError:
             save_log_entry(message="Invalid JSON response, retrying...")
@@ -486,7 +503,7 @@ BEFORE RETURNING ANY SCHEDULE:
             continue
 
     # If we've exhausted all retries
-    return {"classes": []}
+    return {"classes": []}, total_tokens
 
 
 def courseDetailsExractor(department: str, coursenumber, term_year: str):
@@ -556,6 +573,7 @@ def courseDetailsExractor(department: str, coursenumber, term_year: str):
 
 @app.route("/api/generate_schedule", methods=['POST'])
 def generate_schedule():
+    print("Starting AI schedule generation")
     data = request.json
     courses = data.get("courses", [])
     preferences = data.get("preferences", "")
@@ -570,8 +588,9 @@ def generate_schedule():
             course['department'], course['number'], data['term_year'])
         ai_prompt += df.to_csv(index=False)
         ai_prompt += "\n</timetable_of_classes_for_the_course>"
-    schedule = ai_maker(ai_prompt, courses)
-    log_msg = f"AI schedule generation completed with {len(schedule['classes'])} classes"
+    schedule, tokens_used = ai_maker(ai_prompt, courses)
+    total_tokens = update_total_tokens(tokens_used)
+    log_msg = f"AI schedule generation completed with {len(schedule['classes'])} classes | tokens used: {tokens_used} | total tokens: {total_tokens}"
     if email:
         log_msg += f" | email: {email}"
     save_log_entry(message=log_msg)

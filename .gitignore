@@ -137,3 +137,6 @@ dist
 .env
 !/frontend/.env
 invite_codes.json
+__pycache__/
+server_logs.json
+token_total.json
