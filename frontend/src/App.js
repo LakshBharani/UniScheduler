@@ -1,38 +1,66 @@
-import React, { useState, useRef, useEffect } from "react";
-import SchedulerForm from "./components/SchedulerForm";
-import ScheduleViewer from "./components/ScheduleViewer";
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import Navbar from "./components/layout/Navbar";
+import Footer from "./components/layout/Footer";
+import HomePage from "./pages/HomePage";
+import SchedulerPage from "./pages/SchedulerPage";
+import ScheduleViewerPage from "./pages/ScheduleViewerPage";
+import AboutPage from "./pages/AboutPage";
+import { ScheduleProvider } from "./context/ScheduleContext";
+import "./App.css";
 
 function App() {
-  const [schedule, setSchedule] = useState(null);
-  const scheduleRef = useRef(null);
-
-  // Auto-scroll to calendar when a schedule is generated.
-  useEffect(() => {
-    if (schedule) {
-      scheduleRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [schedule]);
-
-  const handleScheduleGenerated = (data) => {
-    setSchedule(data);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-[#861F41] sm:text-4xl">
-            UniScheduler
-          </h1>
-        </header>
-        <SchedulerForm onScheduleGenerated={handleScheduleGenerated} />
-        {schedule && (
-          <div ref={scheduleRef}>
-            <ScheduleViewer schedule={schedule} />
-          </div>
-        )}
-      </div>
-    </div>
+    <ScheduleProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+          <Navbar />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/scheduler" element={<SchedulerPage />} />
+              <Route path="/schedule/:id" element={<ScheduleViewerPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <Footer />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: "#1f2937",
+                color: "#f9fafb",
+                borderRadius: "8px",
+                padding: "16px",
+                fontSize: "14px",
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: "#10b981",
+                  secondary: "#f9fafb",
+                },
+              },
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: "#ef4444",
+                  secondary: "#f9fafb",
+                },
+              },
+            }}
+          />
+        </div>
+      </Router>
+    </ScheduleProvider>
   );
 }
 

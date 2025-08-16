@@ -132,6 +132,7 @@ function SchedulerForm({ onScheduleGenerated }) {
         preferences,
         term_year: selectedSemester,
         email: email.trim() || undefined,
+        // invite_code: inviteCode.trim(), // Commented out invite code requirement
       });
       setProgress(90);
       setStatusMessage("Finalizing schedule...");
@@ -146,7 +147,12 @@ function SchedulerForm({ onScheduleGenerated }) {
         onScheduleGenerated(response.data);
       }
     } catch (err) {
+      // Commented out invite code specific error handling
+      // if (err.response?.status === 401) {
+      //   setError("Invalid invite code.");
+      // } else {
       setError("Failed to generate schedule. Please try again.");
+      // }
       onScheduleGenerated(null);
     } finally {
       setTimeout(() => {
