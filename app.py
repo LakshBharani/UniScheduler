@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import ast
 from uuid import uuid4
 import random
@@ -20,14 +21,13 @@ from reportlab.lib.styles import getSampleStyleSheet
 import io
 import matplotlib
 matplotlib.use('Agg')
-from datetime import datetime, timezone
 
 
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
-json_doc_loc = "invite_codes.json"
+# json_doc_loc = "invite_codes.json"
 
 log_file = "server_logs.json"
 if not os.path.exists(log_file):
@@ -40,7 +40,8 @@ if not os.path.exists(TOKEN_TOTAL_FILE):
     with open(TOKEN_TOTAL_FILE, 'w') as f:
         json.dump({"total_tokens": 0}, f)
 
-def save_log_entry(timestamp = datetime.now(timezone.utc), message = ""):
+
+def save_log_entry(timestamp=datetime.now(timezone.utc), message=""):
     log_entry = {
         timestamp.isoformat(): message
     }
@@ -62,51 +63,51 @@ def save_json_file(file_path, data):
         json.dump(data, file, indent=4)
 
 
-def verify_invite_code(code: str) -> bool:
-    data = load_json_file(json_doc_loc)
-    if code in data:
-        return True
-    else:
-        return False
+# def verify_invite_code(code: str) -> bool:
+#     data = load_json_file(json_doc_loc)
+#     if code in data:
+#         return True
+#     else:
+#         return False
 
 
-def add_invite_code(username: str, password: str, name: str, email: str) -> str:
-    credentials_str = os.getenv("AUTHORIZED_USERS")
-    auth_users_credentials = ast.literal_eval(credentials_str)
+# def add_invite_code(username: str, password: str, name: str, email: str) -> str:
+#     credentials_str = os.getenv("AUTHORIZED_USERS")
+#     auth_users_credentials = ast.literal_eval(credentials_str)
 
-    if username not in auth_users_credentials or password != auth_users_credentials[username]:
-        return "0"
+#     if username not in auth_users_credentials or password != auth_users_credentials[username]:
+#         return "0"
 
-    data = load_json_file(json_doc_loc)
+#     data = load_json_file(json_doc_loc)
 
-    # Check if email already exists
-    for code, info in data.items():
-        if info.get("email") == email:
-            return code  # Return existing code if email matches
+#     # Check if email already exists
+#     for code, info in data.items():
+#         if info.get("email") == email:
+#             return code  # Return existing code if email matches
 
-    # Otherwise, create a new code
-    code = str(uuid4())
-    while code in data:
-        code = str(uuid4())
+#     # Otherwise, create a new code
+#     code = str(uuid4())
+#     while code in data:
+#         code = str(uuid4())
 
-    data[code] = {"name": name, "email": email}
-    save_json_file(json_doc_loc, data)
-    save_log_entry(message=f"New invite code generated for {name} ({email}) with code {code}")
-    return code
+#     data[code] = {"name": name, "email": email}
+#     save_json_file(json_doc_loc, data)
+#     save_log_entry(message=f"New invite code generated for {name} ({email}) with code {code}")
+#     return code
 
 
-def remove_invite_code(code: str, username: str, password: str) -> bool:
-    data = load_json_file(json_doc_loc)
-    credentials_str = os.getenv("AUTHORIZED_USERS")
-    auth_users_credentials = ast.literal_eval(credentials_str)
-    if username not in auth_users_credentials or password != auth_users_credentials[username]:
-        return False
-    if code in data:
-        del data[code]
-        save_json_file(json_doc_loc, data)
-        return True
-    else:
-        return False
+# def remove_invite_code(code: str, username: str, password: str) -> bool:
+#     data = load_json_file(json_doc_loc)
+#     credentials_str = os.getenv("AUTHORIZED_USERS")
+#     auth_users_credentials = ast.literal_eval(credentials_str)
+#     if username not in auth_users_credentials or password != auth_users_credentials[username]:
+#         return False
+#     if code in data:
+#         del data[code]
+#         save_json_file(json_doc_loc, data)
+#         return True
+#     else:
+#         return False
 
 
 def generate_schedule_pdf(schedule_data, inputColors):
@@ -119,7 +120,7 @@ def generate_schedule_pdf(schedule_data, inputColors):
         elements.append(Spacer(1, 12))
 
         table_data = [["Course", "Number", "CRN",
-                    "Day", "Time", "Location", "Professor"]]
+                       "Day", "Time", "Location", "Professor"]]
         for cls in schedule_data:
             table_data.append([
                 cls["courseName"], cls["courseNumber"], cls["crn"],
@@ -224,11 +225,13 @@ def get_total_tokens():
         data = json.load(f)
     return data.get("total_tokens", 0)
 
+
 def update_total_tokens(tokens):
     total = get_total_tokens() + tokens
     with open(TOKEN_TOTAL_FILE, 'w') as f:
         json.dump({"total_tokens": total}, f)
     return total
+
 
 def ai_maker(prompt, courses):
     client = genai.Client(
@@ -400,7 +403,8 @@ BEFORE RETURNING ANY SCHEDULE:
                     scheduled_courses.add(course_number)
 
                 if requested_courses != scheduled_courses:
-                    print(f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
+                    print(
+                        f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
                     retry_count += 1
                     continue
 
@@ -463,7 +467,8 @@ BEFORE RETURNING ANY SCHEDULE:
                                 "course": cls["courseNumber"]
                             })
                     except Exception as e:
-                        save_log_entry(message=f"Error processing class {cls['courseNumber']}: {str(e)}")
+                        save_log_entry(
+                            message=f"Error processing class {cls['courseNumber']}: {str(e)}")
                         continue
 
                 # Check for overlaps in each day
@@ -624,7 +629,8 @@ def get_logs():
             sec_data = json.load(sec_file)
             users = sec_data.get("users", [])
         # Check if user exists and password matches
-        authorized = any(u["username"] == username and u["password"] == password for u in users)
+        authorized = any(
+            u["username"] == username and u["password"] == password for u in users)
         if not authorized:
             return jsonify({"error": "Unauthorized"}), 401
         with open(log_file, 'r') as f:
@@ -633,6 +639,7 @@ def get_logs():
         return jsonify(logs), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=8080)
