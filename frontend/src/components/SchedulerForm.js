@@ -16,7 +16,7 @@ function SchedulerForm({ onScheduleGenerated }) {
   const [semesterOptions, setSemesterOptions] = useState([]);
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     // Generate semester options when component mounts
@@ -104,10 +104,6 @@ function SchedulerForm({ onScheduleGenerated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!inviteCode.trim()) {
-      setError("Invite code is required.");
-      return;
-    }
     // Validate: Ensure department and course number fields are filled.
     for (let course of courses) {
       if (!course.department || !course.number) {
@@ -115,42 +111,30 @@ function SchedulerForm({ onScheduleGenerated }) {
         return;
       }
     }
-
     setError("");
     setLoading(true);
     setProgress(0);
     setStatusMessage("Validating inputs...");
-
     try {
-      // Simulate progress for validation (5%)
       setProgress(5);
       setStatusMessage("Fetching course data...");
-
-      // Calculate progress increment per course
       const progressPerCourse = 40 / courses.length;
-
-      // Simulate progress for course data fetching (up to 45%)
       for (let i = 0; i < courses.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
         setProgress((prev) => prev + progressPerCourse);
         setStatusMessage(
           `Fetching data for ${courses[i].department}${courses[i].number}...`
         );
       }
-
       setStatusMessage("Generating schedule...");
-
       const response = await axios.post(`${API_HOST}/api/generate_schedule`, {
         courses,
         preferences,
         term_year: selectedSemester,
-        invite_code: inviteCode.trim(),
+        email: email.trim() || undefined,
       });
-
-      // Set progress to 90% after AI processing
       setProgress(90);
       setStatusMessage("Finalizing schedule...");
-
       if (response.data === "NO_VALID_SCHEDULE_FOUND") {
         setError(
           "No valid schedule found. Please try different courses or preferences."
@@ -162,14 +146,9 @@ function SchedulerForm({ onScheduleGenerated }) {
         onScheduleGenerated(response.data);
       }
     } catch (err) {
-      if (err.response?.status === 401) {
-        setError("Invalid invite code.");
-      } else {
-        setError("Failed to generate schedule. Please try again.");
-      }
+      setError("Failed to generate schedule. Please try again.");
       onScheduleGenerated(null);
     } finally {
-      // Reset progress after a delay
       setTimeout(() => {
         setLoading(false);
         setProgress(0);
@@ -274,42 +253,16 @@ function SchedulerForm({ onScheduleGenerated }) {
         />
       </div>
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium text-[#75787B] dark:text-gray-400">
-            Invite Code
-          </label>
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSdwDxhJoyXvhEWJP5A3CXFoyRZ7xyRhyIQv2B392RWrVmJjNw/viewform?usp=dialog"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-[#861F41] hover:text-[#6B1934] dark:text-[#E5751F] dark:hover:text-[#D46A1C] font-medium flex items-center gap-1.5 transition-colors"
-          >
-            <span>Request Access</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-3.5 w-3.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </a>
-        </div>
-
-        <div className="relative">
-          <input
-            type="text"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
-            placeholder="Enter access code or request one above"
-            required
-          />
-        </div>
+        <label className="block text-sm font-medium text-[#75787B] dark:text-gray-400 mb-1">
+          Email (optional)
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-[#E5751F] focus:border-[#E5751F] dark:bg-gray-800 dark:text-white"
+          placeholder="Enter your email (optional)"
+        />
       </div>
       {error && (
         <p className="text-red-500 dark:text-red-400 text-xs mb-2">{error}</p>

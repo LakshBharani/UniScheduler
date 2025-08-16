@@ -34,6 +34,12 @@ if not os.path.exists(log_file):
     with open(log_file, 'w') as f:
         json.dump([], f)
 
+# Token total file for running total
+TOKEN_TOTAL_FILE = "token_total.json"
+if not os.path.exists(TOKEN_TOTAL_FILE):
+    with open(TOKEN_TOTAL_FILE, 'w') as f:
+        json.dump({"total_tokens": 0}, f)
+
 def save_log_entry(timestamp = datetime.now(timezone.utc), message = ""):
     log_entry = {
         timestamp.isoformat(): message
@@ -213,14 +219,26 @@ def convert_to_24hr(time_str):
     return datetime.strptime(time_str, "%I:%M%p").hour + datetime.strptime(time_str, "%I:%M%p").minute / 60
 
 
+def get_total_tokens():
+    with open(TOKEN_TOTAL_FILE, 'r') as f:
+        data = json.load(f)
+    return data.get("total_tokens", 0)
+
+def update_total_tokens(tokens):
+    total = get_total_tokens() + tokens
+    with open(TOKEN_TOTAL_FILE, 'w') as f:
+        json.dump({"total_tokens": total}, f)
+    return total
+
 def ai_maker(prompt, courses):
     client = genai.Client(
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.5-pro-exp-03-25"
+    model = os.getenv("GEMINI_MODEL")
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
+    total_tokens = 0
 
     while retry_count < max_retries:
         contents = [
@@ -352,7 +370,6 @@ BEFORE RETURNING ANY SCHEDULE:
         )
 
         responseText = ""
-        total_tokens = 0
         for chunk in client.models.generate_content_stream(
             model=model,
             contents=contents,
@@ -472,13 +489,13 @@ BEFORE RETURNING ANY SCHEDULE:
                         break
 
                 if not has_overlap:
-                    return response_dict
+                    return response_dict, total_tokens
                 else:
                     print("Overlap detected, retrying...")
                     retry_count += 1
                     continue
             else:
-                return response_dict
+                return response_dict, total_tokens
 
         except json.JSONDecodeError:
             save_log_entry(message="Invalid JSON response, retrying...")
@@ -486,7 +503,7 @@ BEFORE RETURNING ANY SCHEDULE:
             continue
 
     # If we've exhausted all retries
-    return {"classes": []}
+    return {"classes": []}, total_tokens
 
 
 def courseDetailsExractor(department: str, coursenumber, term_year: str):
@@ -556,14 +573,11 @@ def courseDetailsExractor(department: str, coursenumber, term_year: str):
 
 @app.route("/api/generate_schedule", methods=['POST'])
 def generate_schedule():
+    print("Starting AI schedule generation")
     data = request.json
     courses = data.get("courses", [])
     preferences = data.get("preferences", "")
-    invite_code = data.get("invite_code", "")
-    print(invite_code)
-    if not verify_invite_code(invite_code):
-        print("Invalid invite code")
-        return jsonify({"error": "Invalid invite code"}), 401
+    email = data.get("email", None)
     ai_prompt = ""
     ai_prompt += f"<preferences_by_user>\n{preferences}\n</preferences_by_user>\n"
     for course in courses:
@@ -574,8 +588,12 @@ def generate_schedule():
             course['department'], course['number'], data['term_year'])
         ai_prompt += df.to_csv(index=False)
         ai_prompt += "\n</timetable_of_classes_for_the_course>"
-    schedule = ai_maker(ai_prompt, courses)
-    save_log_entry(message=f"AI schedule generation completed for invite code {invite_code} with {len(schedule['classes'])} classes")
+    schedule, tokens_used = ai_maker(ai_prompt, courses)
+    total_tokens = update_total_tokens(tokens_used)
+    log_msg = f"AI schedule generation completed with {len(schedule['classes'])} classes | tokens used: {tokens_used} | total tokens: {total_tokens}"
+    if email:
+        log_msg += f" | email: {email}"
+    save_log_entry(message=log_msg)
     return jsonify(schedule)
 
 
@@ -586,46 +604,32 @@ def downloadSchedule():
         schedule = schedule['classes']
         colorsV = request.json.get("crnColors")
         pdf_buffer = generate_schedule_pdf(schedule, colorsV)
+        save_log_entry(message="PDF generated successfully")
         return send_file(pdf_buffer, as_attachment=True, download_name="schedule.pdf", mimetype='application/pdf')
     except Exception as e:
         save_log_entry(message=e)
         return {"error": str(e)}, 500
 
 
-@app.route("/api/add_invite_code", methods=['POST'])
-def add_invite_code_route():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    name = data.get("name")
-    email = data.get("email")
-    if not username or not password or not name or not email:
-        return jsonify({"error": "Name and email are required"}), 400
-    code = add_invite_code(
-        username=username, password=password, name=name, email=email)
-    if code == "0":
-        return jsonify({"error": "Invalid username or password"}), 401
-    return jsonify({"code": code}), 200
-
-
-@app.route("/api/remove_invite_code", methods=['POST'])
-def remove_invite_code_route():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    code = data.get("code")
-    if not code:
-        return jsonify({"error": "Code is required"}), 400
-    if remove_invite_code(code, username=username, password=password):
-        return jsonify({"message": "Code removed successfully"}), 200
-    else:
-        return jsonify({"error": "Code not found"}), 404
-
-@app.route("/api/get_logs", methods=['GET'])
+@app.route("/api/get_logs", methods=['POST'])
 def get_logs():
     try:
+        data = request.json
+        username = data.get("username", None)
+        password = data.get("password", None)
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+        # Load users from security_config.json
+        with open("security_config.json", 'r') as sec_file:
+            sec_data = json.load(sec_file)
+            users = sec_data.get("users", [])
+        # Check if user exists and password matches
+        authorized = any(u["username"] == username and u["password"] == password for u in users)
+        if not authorized:
+            return jsonify({"error": "Unauthorized"}), 401
         with open(log_file, 'r') as f:
             logs = json.load(f)
+        logs = logs[-10:] if len(logs) > 10 else logs
         return jsonify(logs), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
