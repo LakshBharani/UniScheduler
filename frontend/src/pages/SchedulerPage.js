@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSchedule } from "../context/ScheduleContext";
 import toast from "react-hot-toast";
@@ -22,19 +22,21 @@ const SchedulerPage = () => {
     saveSchedule,
     preferences,
     setPreferences,
+    sessionData,
+    setSessionData,
+    clearSessionData,
+    loading,
   } = useSchedule();
 
-  const [courses, setCourses] = useState([
-    { department: "", number: "", professor: "" },
-  ]);
+  const [courses, setCourses] = useState(
+    sessionData.courses || [{ department: "", number: "", professor: "" }]
+  );
   const [semesterOptions, setSemesterOptions] = useState([]);
-  const [selectedSemester, setSelectedSemester] = useState("");
+  const [selectedSemester, setSelectedSemester] = useState(
+    sessionData.semester || ""
+  );
 
-  useEffect(() => {
-    generateSemesterOptions();
-  }, []);
-
-  const generateSemesterOptions = () => {
+  const generateSemesterOptions = useCallback(() => {
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
@@ -78,23 +80,72 @@ const SchedulerPage = () => {
     }
 
     setSemesterOptions(options);
-    setSelectedSemester(options[0].termYear);
-  };
+    if (!selectedSemester) {
+      setSelectedSemester(options[0].termYear);
+    }
+  }, [selectedSemester]);
+
+  useEffect(() => {
+    generateSemesterOptions();
+  }, [generateSemesterOptions]);
+
+  // Load session data when component mounts
+  useEffect(() => {
+    if (sessionData.courses && sessionData.courses.length > 0) {
+      setCourses(sessionData.courses);
+    }
+    if (sessionData.semester) {
+      setSelectedSemester(sessionData.semester);
+    }
+  }, [sessionData]);
 
   const handleCourseChange = (index, field, value) => {
     const newCourses = [...courses];
     newCourses[index][field] = value;
     setCourses(newCourses);
+
+    // Save to session data
+    setSessionData({ courses: newCourses });
   };
 
   const addCourse = () => {
-    setCourses([...courses, { department: "", number: "", professor: "" }]);
+    const newCourses = [
+      ...courses,
+      { department: "", number: "", professor: "" },
+    ];
+    setCourses(newCourses);
+
+    // Save to session data
+    setSessionData({ courses: newCourses });
   };
 
   const removeCourse = (index) => {
     if (courses.length > 1) {
-      setCourses(courses.filter((_, i) => i !== index));
+      const newCourses = courses.filter((_, i) => i !== index);
+      setCourses(newCourses);
+
+      // Save to session data
+      setSessionData({ courses: newCourses });
     }
+  };
+
+  const handleSemesterChange = (semester) => {
+    setSelectedSemester(semester);
+
+    // Save to session data
+    setSessionData({ semester });
+  };
+
+  const handlePreferencesChange = (newPreferences) => {
+    setPreferences(newPreferences);
+  };
+
+  const handleClearForm = () => {
+    setCourses([{ department: "", number: "", professor: "" }]);
+    setSelectedSemester(semesterOptions[0]?.termYear || "");
+    setPreferences({ schedulePreferences: "", email: "" });
+    clearSessionData();
+    toast.success("Form cleared successfully!");
   };
 
   const handleSubmit = async (e) => {
@@ -118,11 +169,13 @@ const SchedulerPage = () => {
     setLoading(true);
     setError(null);
 
-    try {
-      toast.loading("Generating your Virginia Tech schedule...", {
-        id: "schedule",
-      });
+    // Show loading toast immediately
+    toast.loading("Generating your schedule...", {
+      id: "schedule",
+      duration: Infinity, // Keep the toast until we dismiss it
+    });
 
+    try {
       const response = await fetch(`${API_HOST}/api/generate_schedule`, {
         method: "POST",
         headers: {
@@ -136,6 +189,14 @@ const SchedulerPage = () => {
         }),
       });
 
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          "Backend server is not responding. Please make sure the Flask server is running on port 8080."
+        );
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -144,17 +205,18 @@ const SchedulerPage = () => {
 
       if (data === "NO_VALID_SCHEDULE_FOUND") {
         toast.error(
-          "No valid Virginia Tech schedule found. Please try different courses or preferences.",
+          "No valid schedule found. Please try different courses or preferences.",
           { id: "schedule" }
         );
         setError(
-          "No valid Virginia Tech schedule found. Please try different courses or preferences."
+          "No valid schedule found. Please try different courses or preferences."
         );
         return;
       }
 
-      toast.success("Virginia Tech schedule generated successfully!", {
+      toast.success("Schedule generated successfully!", {
         id: "schedule",
+        duration: 3000, // Auto-dismiss after 3 seconds
       });
 
       // Save schedule and navigate to viewer
@@ -173,22 +235,67 @@ const SchedulerPage = () => {
       navigate(`/schedule/${scheduleWithId.id}`);
     } catch (error) {
       console.error("Error generating schedule:", error);
-      toast.error(
-        error.message ||
-          "Failed to generate Virginia Tech schedule. Please try again.",
-        { id: "schedule" }
-      );
-      setError(
-        error.message ||
-          "Failed to generate Virginia Tech schedule. Please try again."
-      );
+
+      let errorMessage = "Failed to generate schedule. Please try again.";
+
+      if (error.message.includes("Backend server is not responding")) {
+        errorMessage =
+          "Backend server is not running. Please start the Flask server on port 8080.";
+      } else if (error.message.includes("Failed to fetch")) {
+        errorMessage =
+          "Cannot connect to the server. Please check if the backend is running.";
+      } else if (error.message.includes("Unexpected token")) {
+        errorMessage =
+          "Server returned an invalid response. Please check if the backend is running correctly.";
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
+      toast.error(errorMessage, { id: "schedule" });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 sm:py-12">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 sm:py-12 relative">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-2xl max-w-md mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <svg
+                className="animate-spin h-12 w-12 text-[#861F41] dark:text-[#E5751F]"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
+              Generating Your Schedule
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 text-center text-sm">
+              This may take a few moments. Please don't close this page.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
@@ -220,7 +327,7 @@ const SchedulerPage = () => {
             </div>
             <select
               value={selectedSemester}
-              onChange={(e) => setSelectedSemester(e.target.value)}
+              onChange={(e) => handleSemesterChange(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#861F41] dark:focus:ring-[#E5751F] focus:border-[#861F41] dark:focus:border-[#E5751F] dark:bg-gray-700 dark:text-white transition-colors duration-200 text-base"
             >
               {semesterOptions.map((option) => (
@@ -331,7 +438,7 @@ const SchedulerPage = () => {
             <textarea
               value={preferences.schedulePreferences}
               onChange={(e) =>
-                setPreferences({ schedulePreferences: e.target.value })
+                handlePreferencesChange({ schedulePreferences: e.target.value })
               }
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#861F41] dark:focus:ring-[#E5751F] focus:border-[#861F41] dark:focus:border-[#E5751F] dark:bg-gray-700 dark:text-white transition-colors duration-200 resize-y text-sm"
               rows="4"
@@ -352,7 +459,9 @@ const SchedulerPage = () => {
             <input
               type="email"
               value={preferences.email}
-              onChange={(e) => setPreferences({ email: e.target.value })}
+              onChange={(e) =>
+                handlePreferencesChange({ email: e.target.value })
+              }
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#861F41] dark:focus:ring-[#E5751F] focus:border-[#861F41] dark:focus:border-[#E5751F] dark:bg-gray-700 dark:text-white transition-colors duration-200 text-sm"
               placeholder="Enter your Virginia Tech email (optional)"
             />
@@ -363,13 +472,47 @@ const SchedulerPage = () => {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-center">
+          <div className="flex justify-center space-x-4">
+            <button
+              type="button"
+              onClick={handleClearForm}
+              disabled={loading}
+              className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Clear Form
+            </button>
             <button
               type="submit"
-              disabled={false}
+              disabled={loading}
               className="inline-flex items-center px-8 py-4 bg-[#861F41] hover:bg-[#6B1934] text-white font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
-              Generate Virginia Tech Schedule
+              {loading ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                "Generate Schedule"
+              )}
             </button>
           </div>
         </form>

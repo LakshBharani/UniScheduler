@@ -38,8 +38,8 @@ const HomePage = () => {
   ];
 
   const stats = [
-    { number: "1,000+", label: "VT Schedules Generated" },
-    { number: "500+", label: "VT Courses Supported" },
+    { number: "1,000+", label: "Schedule Combinations" },
+    { number: "500+", label: "Courses Supported" },
     { number: "99.9%", label: "Conflict-Free Rate" },
     { number: "24/7", label: "Availability" },
   ];
