@@ -1,51 +1,67 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect } from "react";
 
 const ScheduleContext = createContext();
 
 const initialState = {
   currentSchedule: null,
   savedSchedules: [],
-  isLoading: false,
+  loading: false,
   error: null,
   preferences: {
-    semester: '',
-    email: '',
-    schedulePreferences: ''
-  }
+    schedulePreferences: "",
+    email: "",
+  },
+  sessionData: {
+    courses: [{ department: "", number: "", professor: "" }],
+    semester: "",
+  },
 };
 
 const scheduleReducer = (state, action) => {
   switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload, isLoading: false };
-    case 'SET_CURRENT_SCHEDULE':
-      return { ...state, currentSchedule: action.payload, error: null };
-    case 'SAVE_SCHEDULE':
-      const newSchedule = {
-        ...action.payload,
-        id: Date.now().toString(),
-        savedAt: new Date().toISOString()
-      };
+    case "SET_LOADING":
+      return { ...state, loading: action.payload };
+    case "SET_ERROR":
+      return { ...state, error: action.payload };
+    case "SET_CURRENT_SCHEDULE":
+      return { ...state, currentSchedule: action.payload };
+    case "SAVE_SCHEDULE":
+      const updatedSchedules = [...state.savedSchedules, action.payload];
+      localStorage.setItem("savedSchedules", JSON.stringify(updatedSchedules));
+      return { ...state, savedSchedules: updatedSchedules };
+    case "DELETE_SCHEDULE":
+      const filteredSchedules = state.savedSchedules.filter(
+        (schedule) => schedule.id !== action.payload
+      );
+      localStorage.setItem("savedSchedules", JSON.stringify(filteredSchedules));
+      return { ...state, savedSchedules: filteredSchedules };
+    case "SET_PREFERENCES":
+      const newPreferences = { ...state.preferences, ...action.payload };
+      localStorage.setItem(
+        "schedulePreferences",
+        JSON.stringify(newPreferences)
+      );
+      return { ...state, preferences: newPreferences };
+    case "SET_SESSION_DATA":
+      const newSessionData = { ...state.sessionData, ...action.payload };
+      localStorage.setItem("sessionData", JSON.stringify(newSessionData));
+      return { ...state, sessionData: newSessionData };
+    case "CLEAR_SESSION_DATA":
+      localStorage.removeItem("sessionData");
       return {
         ...state,
-        savedSchedules: [...state.savedSchedules, newSchedule],
-        currentSchedule: newSchedule
+        sessionData: {
+          courses: [{ department: "", number: "", professor: "" }],
+          semester: "",
+        },
       };
-    case 'DELETE_SCHEDULE':
+    case "LOAD_SAVED_DATA":
       return {
         ...state,
-        savedSchedules: state.savedSchedules.filter(s => s.id !== action.payload),
-        currentSchedule: state.currentSchedule?.id === action.payload ? null : state.currentSchedule
+        savedSchedules: action.payload.savedSchedules || [],
+        preferences: action.payload.preferences || initialState.preferences,
+        sessionData: action.payload.sessionData || initialState.sessionData,
       };
-    case 'SET_PREFERENCES':
-      return {
-        ...state,
-        preferences: { ...state.preferences, ...action.payload }
-      };
-    case 'CLEAR_CURRENT_SCHEDULE':
-      return { ...state, currentSchedule: null };
     default:
       return state;
   }
@@ -54,36 +70,74 @@ const scheduleReducer = (state, action) => {
 export const ScheduleProvider = ({ children }) => {
   const [state, dispatch] = useReducer(scheduleReducer, initialState);
 
-  // Load saved schedules from localStorage on mount
+  // Load saved data from localStorage on component mount
   useEffect(() => {
-    const savedSchedules = localStorage.getItem('savedSchedules');
-    if (savedSchedules) {
-      try {
-        const parsed = JSON.parse(savedSchedules);
-        parsed.forEach(schedule => {
-          dispatch({ type: 'SAVE_SCHEDULE', payload: schedule });
-        });
-      } catch (error) {
-        console.error('Error loading saved schedules:', error);
-      }
+    try {
+      const savedSchedules = JSON.parse(
+        localStorage.getItem("savedSchedules") || "[]"
+      );
+      const preferences = JSON.parse(
+        localStorage.getItem("schedulePreferences") || "null"
+      );
+      const sessionData = JSON.parse(
+        localStorage.getItem("sessionData") || "null"
+      );
+
+      dispatch({
+        type: "LOAD_SAVED_DATA",
+        payload: {
+          savedSchedules,
+          preferences: preferences || initialState.preferences,
+          sessionData: sessionData || initialState.sessionData,
+        },
+      });
+    } catch (error) {
+      console.error("Error loading saved data:", error);
     }
   }, []);
 
-  // Save schedules to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('savedSchedules', JSON.stringify(state.savedSchedules));
-  }, [state.savedSchedules]);
+  const setLoading = (loading) => {
+    dispatch({ type: "SET_LOADING", payload: loading });
+  };
+
+  const setError = (error) => {
+    dispatch({ type: "SET_ERROR", payload: error });
+  };
+
+  const setCurrentSchedule = (schedule) => {
+    dispatch({ type: "SET_CURRENT_SCHEDULE", payload: schedule });
+  };
+
+  const saveSchedule = (schedule) => {
+    dispatch({ type: "SAVE_SCHEDULE", payload: schedule });
+  };
+
+  const deleteSchedule = (scheduleId) => {
+    dispatch({ type: "DELETE_SCHEDULE", payload: scheduleId });
+  };
+
+  const setPreferences = (preferences) => {
+    dispatch({ type: "SET_PREFERENCES", payload: preferences });
+  };
+
+  const setSessionData = (sessionData) => {
+    dispatch({ type: "SET_SESSION_DATA", payload: sessionData });
+  };
+
+  const clearSessionData = () => {
+    dispatch({ type: "CLEAR_SESSION_DATA" });
+  };
 
   const value = {
     ...state,
-    dispatch,
-    setLoading: (loading) => dispatch({ type: 'SET_LOADING', payload: loading }),
-    setError: (error) => dispatch({ type: 'SET_ERROR', payload: error }),
-    setCurrentSchedule: (schedule) => dispatch({ type: 'SET_CURRENT_SCHEDULE', payload: schedule }),
-    saveSchedule: (schedule) => dispatch({ type: 'SAVE_SCHEDULE', payload: schedule }),
-    deleteSchedule: (id) => dispatch({ type: 'DELETE_SCHEDULE', payload: id }),
-    setPreferences: (preferences) => dispatch({ type: 'SET_PREFERENCES', payload: preferences }),
-    clearCurrentSchedule: () => dispatch({ type: 'CLEAR_CURRENT_SCHEDULE' })
+    setLoading,
+    setError,
+    setCurrentSchedule,
+    saveSchedule,
+    deleteSchedule,
+    setPreferences,
+    setSessionData,
+    clearSessionData,
   };
 
   return (
@@ -96,7 +150,7 @@ export const ScheduleProvider = ({ children }) => {
 export const useSchedule = () => {
   const context = useContext(ScheduleContext);
   if (!context) {
-    throw new Error('useSchedule must be used within a ScheduleProvider');
+    throw new Error("useSchedule must be used within a ScheduleProvider");
   }
   return context;
 };
