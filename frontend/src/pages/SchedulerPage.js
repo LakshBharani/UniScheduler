@@ -245,6 +245,18 @@ const SchedulerPage = () => {
         };
       });
 
+      console.log("SchedulerPage API_HOST:", API_HOST);
+      console.log(
+        "Making fetch request to:",
+        `${API_HOST}/api/generate_schedule`
+      );
+      console.log("Request data:", {
+        courses: parsedCourses,
+        preferences: preferences.schedulePreferences,
+        term_year: selectedSemester,
+        email: preferences.email || undefined,
+      });
+
       const response = await fetch(`${API_HOST}/api/generate_schedule`, {
         method: "POST",
         headers: {
@@ -258,11 +270,14 @@ const SchedulerPage = () => {
         }),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+
       // Check if response is JSON
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error(
-          "Backend server is not responding. Please make sure the Flask server is running on port 8080."
+          "Backend server is not responding. Please check if the server is running."
         );
       }
 
@@ -304,12 +319,17 @@ const SchedulerPage = () => {
       navigate(`/schedule/${scheduleWithId.id}`);
     } catch (error) {
       console.error("Error generating schedule:", error);
+      console.error("Error details:", {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
 
       let errorMessage = "Failed to generate schedule. Please try again.";
 
       if (error.message.includes("Backend server is not responding")) {
         errorMessage =
-          "Backend server is not running. Please start the Flask server on port 8080.";
+          "Backend server is not running. Please check if the server is accessible.";
       } else if (error.message.includes("Failed to fetch")) {
         errorMessage =
           "Cannot connect to the server. Please check if the backend is running.";

@@ -7,6 +7,7 @@ const API_HOST =
   process.env.REACT_APP_API_HOST || "https://unischeduler.onrender.com";
 
 function SchedulerForm({ onScheduleGenerated }) {
+  console.log("SchedulerForm API_HOST:", API_HOST);
   const [courses, setCourses] = useState([
     { department: "", number: "", professor: "" },
   ]);
@@ -105,6 +106,7 @@ function SchedulerForm({ onScheduleGenerated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Form submitted with courses:", courses);
     // Validate: Ensure department and course number fields are filled.
     for (let course of courses) {
       if (!course.department || !course.number) {
@@ -128,6 +130,13 @@ function SchedulerForm({ onScheduleGenerated }) {
         );
       }
       setStatusMessage("Generating schedule...");
+      console.log("Making API call to:", `${API_HOST}/api/generate_schedule`);
+      console.log("Request data:", {
+        courses,
+        preferences,
+        term_year: selectedSemester,
+        email: email.trim() || undefined,
+      });
       const response = await axios.post(`${API_HOST}/api/generate_schedule`, {
         courses,
         preferences,
@@ -135,6 +144,7 @@ function SchedulerForm({ onScheduleGenerated }) {
         email: email.trim() || undefined,
         // invite_code: inviteCode.trim(), // Commented out invite code requirement
       });
+      console.log("API response:", response.data);
       setProgress(90);
       setStatusMessage("Finalizing schedule...");
       if (response.data === "NO_VALID_SCHEDULE_FOUND") {
@@ -148,6 +158,13 @@ function SchedulerForm({ onScheduleGenerated }) {
         onScheduleGenerated(response.data);
       }
     } catch (err) {
+      console.error("API call failed:", err);
+      console.error("Error details:", {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+      });
       // Commented out invite code specific error handling
       // if (err.response?.status === 401) {
       //   setError("Invalid invite code.");
