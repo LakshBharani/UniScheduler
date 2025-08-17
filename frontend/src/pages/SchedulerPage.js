@@ -11,7 +11,8 @@ import {
   EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 
-const API_HOST = process.env.REACT_APP_API_HOST || "http://localhost:8080";
+const API_HOST =
+  process.env.REACT_APP_API_HOST || "https://80cdd7fd1fee.ngrok-free.app";
 
 const SchedulerPage = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const SchedulerPage = () => {
   } = useSchedule();
 
   const [courses, setCourses] = useState(
-    sessionData.courses || [{ department: "", number: "", professor: "" }]
+    sessionData.courses || [{ courseCode: "", professor: "" }]
   );
   const [semesterOptions, setSemesterOptions] = useState([]);
   const [selectedSemester, setSelectedSemester] = useState(
@@ -99,9 +100,65 @@ const SchedulerPage = () => {
     }
   }, [sessionData]);
 
+  const parseCourseCode = (courseCode) => {
+    if (!courseCode || typeof courseCode !== "string") {
+      return { department: "", number: "" };
+    }
+
+    const cleaned = courseCode.trim().toUpperCase();
+    const match = cleaned.match(/^([A-Z]{2,4})[^0-9]*(\d{3,4})$/);
+
+    if (match) {
+      return {
+        department: match[1],
+        number: match[2],
+      };
+    }
+
+    const parts = cleaned.split(/[\s\-_]+/);
+    if (parts.length >= 2) {
+      const department = parts[0];
+      const number = parts[1];
+
+      if (/^[A-Z]{2,4}$/.test(department) && /^\d{3,4}$/.test(number)) {
+        return { department, number };
+      }
+    }
+
+    return { department: cleaned, number: "" };
+  };
+
+  const isValidCourseCode = (courseCode) => {
+    if (!courseCode || typeof courseCode !== "string") return false;
+
+    const cleaned = courseCode.trim().toUpperCase();
+    const patterns = [
+      /^[A-Z]{2,4}\s+\d{3,4}$/,
+      /^[A-Z]{2,4}\d{3,4}$/,
+      /^[A-Z]{2,4}-\d{3,4}$/,
+      /^[A-Z]{2,4}_\d{3,4}$/,
+    ];
+
+    return patterns.some((pattern) => pattern.test(cleaned));
+  };
+
   const handleCourseChange = (index, field, value) => {
     const newCourses = [...courses];
-    newCourses[index][field] = value;
+
+    if (field === "courseCode") {
+      newCourses[index] = { ...newCourses[index], courseCode: value };
+
+      // Auto-format the course code as user types
+      if (value) {
+        const formatted = value.trim().toUpperCase();
+        // Add space after department if missing
+        const withSpace = formatted.replace(/^([A-Z]{2,4})(\d{3,4})$/, "$1 $2");
+        newCourses[index].courseCode = withSpace;
+      }
+    } else {
+      newCourses[index][field] = value;
+    }
+
     setCourses(newCourses);
 
     // Save to session data
@@ -109,10 +166,7 @@ const SchedulerPage = () => {
   };
 
   const addCourse = () => {
-    const newCourses = [
-      ...courses,
-      { department: "", number: "", professor: "" },
-    ];
+    const newCourses = [...courses, { courseCode: "", professor: "" }];
     setCourses(newCourses);
 
     // Save to session data
@@ -141,7 +195,7 @@ const SchedulerPage = () => {
   };
 
   const handleClearForm = () => {
-    setCourses([{ department: "", number: "", professor: "" }]);
+    setCourses([{ courseCode: "", professor: "" }]);
     setSelectedSemester(semesterOptions[0]?.termYear || "");
     setPreferences({ schedulePreferences: "", email: "" });
     clearSessionData();
@@ -153,9 +207,14 @@ const SchedulerPage = () => {
 
     // Validation
     for (let course of courses) {
-      if (!course.department || !course.number) {
+      if (!course.courseCode) {
+        toast.error("Course code is required for each course.");
+        return;
+      }
+
+      if (!isValidCourseCode(course.courseCode)) {
         toast.error(
-          "Department and Course Number are required for each course."
+          `Invalid course code format: ${course.courseCode}. Please use format like "CS 1114" or "CS1114".`
         );
         return;
       }
@@ -176,13 +235,23 @@ const SchedulerPage = () => {
     });
 
     try {
+      // Parse course codes for the API
+      const parsedCourses = courses.map((course) => {
+        const { department, number } = parseCourseCode(course.courseCode);
+        return {
+          department,
+          number,
+          professor: course.professor || "",
+        };
+      });
+
       const response = await fetch(`${API_HOST}/api/generate_schedule`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          courses,
+          courses: parsedCourses,
           preferences: preferences.schedulePreferences,
           term_year: selectedSemester,
           email: preferences.email || undefined,
@@ -355,7 +424,7 @@ const SchedulerPage = () => {
                 className="inline-flex items-center px-4 py-2 bg-[#861F41] hover:bg-[#6B1934] text-white font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
-                Add VT Course
+                Add Course
               </button>
             </div>
 
@@ -367,59 +436,48 @@ const SchedulerPage = () => {
                 >
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Department
+                      Course Code
                     </label>
                     <input
                       type="text"
-                      value={course.department}
+                      value={course.courseCode}
                       onChange={(e) =>
-                        handleCourseChange(index, "department", e.target.value)
+                        handleCourseChange(index, "courseCode", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#861F41] dark:focus:ring-[#E5751F] focus:border-[#861F41] dark:focus:border-[#E5751F] dark:bg-gray-600 dark:text-white transition-colors duration-200 text-sm"
-                      placeholder="e.g., CS"
+                      placeholder="e.g., CS 1114 or CS1114"
                       required
                     />
+                    {course.courseCode &&
+                      !isValidCourseCode(course.courseCode) && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Use format like "CS 1114" or "CS1114"
+                        </p>
+                      )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Course Number
+                      VT Professor (Optional)
                     </label>
                     <input
                       type="text"
-                      value={course.number}
+                      value={course.professor}
                       onChange={(e) =>
-                        handleCourseChange(index, "number", e.target.value)
+                        handleCourseChange(index, "professor", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#861F41] dark:focus:ring-[#E5751F] focus:border-[#861F41] dark:focus:border-[#E5751F] dark:bg-gray-600 dark:text-white transition-colors duration-200 text-sm"
-                      placeholder="e.g., 1114"
-                      required
+                      placeholder="e.g., Dr. Smith"
                     />
                   </div>
-                  <div className="flex items-end space-x-2">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        VT Professor (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={course.professor}
-                        onChange={(e) =>
-                          handleCourseChange(index, "professor", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#861F41] dark:focus:ring-[#E5751F] focus:border-[#861F41] dark:focus:border-[#E5751F] dark:bg-gray-600 dark:text-white transition-colors duration-200 text-sm"
-                        placeholder="e.g., Dr. Smith"
-                      />
-                    </div>
-                    {courses.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeCourse(index)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
+                  {courses.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeCourse(index)}
+                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
