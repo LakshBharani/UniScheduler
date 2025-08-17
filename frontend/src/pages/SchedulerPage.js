@@ -12,7 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 const API_HOST =
-  process.env.REACT_APP_API_HOST || "https://80cdd7fd1fee.ngrok-free.app";
+  process.env.REACT_APP_API_HOST || "https://ad61970efcb7.ngrok-free.app";
 
 const SchedulerPage = () => {
   const navigate = useNavigate();
