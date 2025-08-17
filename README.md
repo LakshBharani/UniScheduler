@@ -3,6 +3,7 @@
 A modern, intelligent course scheduling platform built for students. This project is developed by combining an intuitive React-based frontend, a robust Flask backend, and smart scheduling logic powered by Google's Gemini API.
 ---
 
+
 ## 🎯 Overview
 
 UniScheduler helps students create optimal class schedules based on personal preferences like class codes, professor choices, and custom time constraints. With natural language support, students can simply type requests like:
