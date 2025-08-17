@@ -4,7 +4,8 @@ import CalendarView from "./CalendarView";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
 // Get API host from environment variable or use default
-const API_HOST = process.env.REACT_APP_API_HOST || "http://localhost:8080";
+const API_HOST =
+  process.env.REACT_APP_API_HOST || "https://unischeduler.onrender.com";
 
 function ScheduleViewer({ schedule }) {
   const [downloadMessage, setDownloadMessage] = useState("");

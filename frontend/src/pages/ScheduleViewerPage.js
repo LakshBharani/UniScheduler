@@ -14,7 +14,8 @@ import {
 import CalendarView from "../components/CalendarView";
 import toast from "react-hot-toast";
 
-const API_HOST = process.env.REACT_APP_API_HOST || "http://localhost:8080";
+const API_HOST =
+  process.env.REACT_APP_API_HOST || "https://unischeduler.onrender.com";
 
 const ScheduleViewerPage = () => {
   const { id } = useParams();

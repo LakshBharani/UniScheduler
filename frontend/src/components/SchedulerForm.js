@@ -3,7 +3,8 @@ import axios from "axios";
 import { TrashIcon } from "@heroicons/react/24/solid";
 
 // Get API host from environment variable or use default
-const API_HOST = process.env.REACT_APP_API_HOST || "http://localhost:8080";
+const API_HOST =
+  process.env.REACT_APP_API_HOST || "https://unischeduler.onrender.com";
 
 function SchedulerForm({ onScheduleGenerated }) {
   const [courses, setCourses] = useState([
