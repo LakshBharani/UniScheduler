@@ -1,5 +1,3 @@
-import psutil
-import gc
 from datetime import datetime, timezone
 import ast
 from uuid import uuid4
@@ -23,12 +21,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 import io
 import matplotlib
 matplotlib.use('Agg')
-
-# Memory optimization settings
-
-# Set memory limits
-os.environ['OMP_NUM_THREADS'] = '1'  # Limit OpenMP threads
-os.environ['MKL_NUM_THREADS'] = '1'  # Limit MKL threads
 
 
 app = Flask(__name__)
@@ -120,9 +112,6 @@ def save_json_file(file_path, data):
 
 def generate_schedule_pdf(schedule_data, inputColors):
     try:
-        # Memory optimization: Force garbage collection before PDF generation
-        gc.collect()
-
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter)
         styles = getSampleStyleSheet()
@@ -157,10 +146,6 @@ def generate_schedule_pdf(schedule_data, inputColors):
         buffer.seek(0)
         os.remove("calendar_plot.png")
         save_log_entry(message="PDF generated successfully")
-
-        # Memory optimization: Force garbage collection after PDF generation
-        gc.collect()
-
         return buffer
     except Exception as e:
         save_log_entry(message=f"Error generating PDF: {str(e)}")
@@ -249,23 +234,12 @@ def update_total_tokens(tokens):
 
 
 def ai_maker(prompt, courses):
-    # Memory optimization: Force garbage collection before AI operations
-    gc.collect()
-
-    # Check available memory
-    memory = psutil.virtual_memory()
-    if memory.percent > 90:  # If memory usage is above 90%
-        save_log_entry(
-            message=f"High memory usage detected: {memory.percent}%")
-        # Force garbage collection
-        gc.collect()
-
     client = genai.Client(
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
     model = os.getenv("GEMINI_MODEL")
-    max_retries = 3  # Reduced from 5 to save memory
+    max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
     total_tokens = 0
 
@@ -539,9 +513,6 @@ BEFORE RETURNING ANY SCHEDULE:
 
 def courseDetailsExractor(department: str, coursenumber, term_year: str):
     try:
-        # Memory optimization: Force garbage collection before web scraping
-        gc.collect()
-
         url = "https://selfservice.banner.vt.edu/ssb/HZSKVTSC.P_ProcRequest"
         form_data = {
             "CAMPUS": "0",
@@ -608,10 +579,6 @@ def courseDetailsExractor(department: str, coursenumber, term_year: str):
 @app.route("/api/generate_schedule", methods=['POST'])
 def generate_schedule():
     print("Starting AI schedule generation")
-
-    # Memory optimization: Force garbage collection at start
-    gc.collect()
-
     data = request.json
     courses = data.get("courses", [])
     preferences = data.get("preferences", "")
