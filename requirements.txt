@@ -9,3 +9,4 @@ reportlab
 matplotlib
 google-genai
 gunicorn
+psutil
