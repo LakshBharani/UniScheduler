@@ -14,15 +14,19 @@ const Navbar = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check for saved theme preference or default to light mode
+    // Check for saved theme preference, default to light mode if none exists
     const savedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
 
-    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+    // Only apply dark mode if user has explicitly set it
+    if (savedTheme === "dark") {
       setIsDark(true);
       document.documentElement.classList.add("dark");
+    } else {
+      // Default to light mode
+      setIsDark(false);
+      document.documentElement.classList.remove("dark");
+      // Set default theme in localStorage
+      localStorage.setItem("theme", "light");
     }
   }, []);
 

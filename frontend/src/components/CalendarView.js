@@ -13,42 +13,42 @@ const CalendarView = ({ schedule, setCrnColors }) => {
   // Days of the week (only weekdays)
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-  // Generate 15 distinct colors for classes
+  // Generate 15 distinct colors for classes (dark mode compatible)
   const colors = [
-    "bg-red-200",
-    "bg-blue-200",
-    "bg-green-200",
-    "bg-yellow-200",
-    "bg-purple-200",
-    "bg-pink-200",
-    "bg-indigo-200",
-    "bg-teal-200",
-    "bg-orange-200",
-    "bg-cyan-200",
-    "bg-lime-200",
-    "bg-amber-200",
-    "bg-emerald-200",
-    "bg-violet-200",
-    "bg-fuchsia-200",
+    "bg-red-200 dark:bg-red-800",
+    "bg-blue-200 dark:bg-blue-800",
+    "bg-green-200 dark:bg-green-800",
+    "bg-yellow-200 dark:bg-yellow-800",
+    "bg-purple-200 dark:bg-purple-800",
+    "bg-pink-200 dark:bg-pink-800",
+    "bg-indigo-200 dark:bg-indigo-800",
+    "bg-teal-200 dark:bg-teal-800",
+    "bg-orange-200 dark:bg-orange-800",
+    "bg-cyan-200 dark:bg-cyan-800",
+    "bg-lime-200 dark:bg-lime-800",
+    "bg-amber-200 dark:bg-amber-800",
+    "bg-emerald-200 dark:bg-emerald-800",
+    "bg-violet-200 dark:bg-violet-800",
+    "bg-fuchsia-200 dark:bg-fuchsia-800",
   ];
 
-  // Map Tailwind colors to their hex codes
+  // Map Tailwind colors to their hex codes (light and dark variants)
   const colorToHex = {
-    "bg-red-200": "#FECACA",
-    "bg-blue-200": "#BFDBFE",
-    "bg-green-200": "#BBF7D0",
-    "bg-yellow-200": "#FEF08A",
-    "bg-purple-200": "#E9D5FF",
-    "bg-pink-200": "#FBCFE8",
-    "bg-indigo-200": "#C7D2FE",
-    "bg-teal-200": "#99F6E4",
-    "bg-orange-200": "#FED7AA",
-    "bg-cyan-200": "#A5F3FC",
-    "bg-lime-200": "#D9F99D",
-    "bg-amber-200": "#FDE68A",
-    "bg-emerald-200": "#A7F3D0",
-    "bg-violet-200": "#DDD6FE",
-    "bg-fuchsia-200": "#F5D0FE",
+    "bg-red-200 dark:bg-red-800": "#FECACA",
+    "bg-blue-200 dark:bg-blue-800": "#BFDBFE",
+    "bg-green-200 dark:bg-green-800": "#BBF7D0",
+    "bg-yellow-200 dark:bg-yellow-800": "#FEF08A",
+    "bg-purple-200 dark:bg-purple-800": "#E9D5FF",
+    "bg-pink-200 dark:bg-pink-800": "#FBCFE8",
+    "bg-indigo-200 dark:bg-indigo-800": "#C7D2FE",
+    "bg-teal-200 dark:bg-teal-800": "#99F6E4",
+    "bg-orange-200 dark:bg-orange-800": "#FED7AA",
+    "bg-cyan-200 dark:bg-cyan-800": "#A5F3FC",
+    "bg-lime-200 dark:bg-lime-800": "#D9F99D",
+    "bg-amber-200 dark:bg-amber-800": "#FDE68A",
+    "bg-emerald-200 dark:bg-emerald-800": "#A7F3D0",
+    "bg-violet-200 dark:bg-violet-800": "#DDD6FE",
+    "bg-fuchsia-200 dark:bg-fuchsia-800": "#F5D0FE",
   };
 
   // Create a mapping of CRNs to colors
@@ -159,9 +159,12 @@ const CalendarView = ({ schedule, setCrnColors }) => {
     <div className="w-full overflow-x-auto">
       <div className="min-w-[800px]">
         {/* Header with days */}
-        <div className="grid grid-cols-5 border-b ml-20">
+        <div className="grid grid-cols-5 border-b border-gray-300 dark:border-gray-600 ml-20">
           {days.map((day, index) => (
-            <div key={index} className="p-2 font-bold text-center border-r">
+            <div
+              key={index}
+              className="p-2 font-bold text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+            >
               {day}
             </div>
           ))}
@@ -172,7 +175,10 @@ const CalendarView = ({ schedule, setCrnColors }) => {
           {/* Time labels */}
           <div className="absolute left-0 w-20">
             {timeSlots.map((time, index) => (
-              <div key={index} className="h-12 border-b text-sm p-1">
+              <div
+                key={index}
+                className="h-12 border-b border-gray-300 dark:border-gray-600 text-sm p-1 text-gray-700 dark:text-gray-300"
+              >
                 {time}
               </div>
             ))}
@@ -185,7 +191,7 @@ const CalendarView = ({ schedule, setCrnColors }) => {
               Array.from({ length: 5 }).map((_, colIndex) => (
                 <div
                   key={`${rowIndex}-${colIndex}`}
-                  className={`h-3 border-b border-r`}
+                  className={`h-3 border-b border-r border-gray-200 dark:border-gray-700`}
                 />
               ))
             )}
@@ -194,7 +200,7 @@ const CalendarView = ({ schedule, setCrnColors }) => {
             {events.map((event, index) => (
               <div
                 key={index}
-                className={`absolute ${event.color} p-1 text-[8px] rounded border border-gray-300 overflow-hidden hover:z-50 cursor-pointer`}
+                className={`absolute ${event.color} p-1 text-[8px] rounded border border-gray-300 dark:border-gray-600 overflow-hidden hover:z-50 cursor-pointer text-gray-900 dark:text-white`}
                 style={{
                   left: `${event.day * 20}%`,
                   top: `${event.startPos * 12}px`,
@@ -212,7 +218,7 @@ const CalendarView = ({ schedule, setCrnColors }) => {
             {/* Side Modal for Class Details */}
             {hoveredClass && (
               <div
-                className="absolute bg-white shadow-xl rounded-lg p-2 z-50 max-w-xs border-l-2"
+                className="absolute bg-white dark:bg-gray-800 shadow-xl rounded-lg p-2 z-50 max-w-xs border-l-2 text-gray-900 dark:text-white"
                 style={{
                   top: `${hoveredClass.startPos * 12}px`,
                   left:
