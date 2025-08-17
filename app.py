@@ -9,8 +9,7 @@ from flask_cors import CORS
 from bs4 import BeautifulSoup
 import requests
 import pandas as pd
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import json
 from dotenv import load_dotenv
 import os
@@ -234,72 +233,51 @@ def update_total_tokens(tokens):
 
 
 def ai_maker(prompt, courses):
-    client = genai.Client(
-        api_key=os.getenv("GEMINI_API_KEY"),
-    )
+    # Configure the API key
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-    model = os.getenv("GEMINI_MODEL")
+    # Use the model from environment variable
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
+
     max_retries = 5  # Maximum number of retries to find a non-overlapping schedule
     retry_count = 0
     total_tokens = 0
 
     while retry_count < max_retries:
-        contents = [
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_text(text=f"""{prompt}"""),
-                ],
-            ),
-        ]
-        generate_content_config = types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=genai.types.Schema(
-                type=genai.types.Type.OBJECT,
-                required=["classes"],
-                properties={
-                    "classes": genai.types.Schema(
-                        type=genai.types.Type.ARRAY,
-                        items=genai.types.Schema(
-                            type=genai.types.Type.OBJECT,
-                            required=["crn", "courseNumber", "courseName",
-                                      "professorName", "days", "time", "location"],
-                            properties={
-                                "crn": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "courseNumber": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "courseName": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "professorName": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "days": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "time": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "location": genai.types.Schema(
-                                    type=genai.types.Type.STRING,
-                                ),
-                                "isLab": genai.types.Schema(
-                                    type=genai.types.Type.BOOLEAN,
-                                ),
-                            },
-                        ),
-                    ),
-                },
-            ),
-            system_instruction=[
-                types.Part.from_text(text='''
-You are a virtual timetable generator.
+        # Create the structured output schema
+        schema = {
+            "type": "object",
+            "properties": {
+                "classes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "crn": {"type": "string"},
+                            "courseNumber": {"type": "string"},
+                            "courseName": {"type": "string"},
+                            "professorName": {"type": "string"},
+                            "days": {"type": "string"},
+                            "time": {"type": "string"},
+                            "location": {"type": "string"},
+                            "isLab": {"type": "boolean"}
+                        },
+                        "required": ["crn", "courseNumber", "courseName", "professorName", "days", "time", "location"]
+                    }
+                }
+            },
+            "required": ["classes"]
+        }
+
+        try:
+            # Create the model
+            model = genai.GenerativeModel(model_name)
+
+            # Generate content with structured output
+            response = model.generate_content(
+                f"""You are a virtual timetable generator.
 !!! IMPORTANT !!!
 IF ANY COURSE IS CLASHING WITH ANOTHER COURSE, RETURN NOTHING AT ALL UNTIL THE CLASH IS RESOLVED.
-
 
 🚨 CRITICAL FORMAT REQUIREMENT:
 - Course codes MUST be in the format: DEPARTMENTNUMBER (e.g., "ENGL1106", "CS2114")
@@ -360,7 +338,7 @@ CRN    Course    Course Name    Instructor    Day    Start Time - End Time    Lo
 - DO NOT use hyphens in course codes
 
 ❌ If even one course makes the schedule invalid (due to overlap or timing), return **nothing at all**.
-                                 
+
 !!! IMPORTANT !!!
 BEFORE RETURNING ANY SCHEDULE:
 1. Check for any time overlaps between all classes
@@ -368,142 +346,146 @@ BEFORE RETURNING ANY SCHEDULE:
 3. Ensure there is at least a 5-minute gap between consecutive classes
 4. If any of these checks fail, return nothing and try another combination
 5. If no valid combination is found after trying all possibilities, return "NO_VALID_SCHEDULE_FOUND"
-'''),
-            ],
-        )
 
-        responseText = ""
-        for chunk in client.models.generate_content_stream(
-            model=model,
-            contents=contents,
-            config=generate_content_config,
-        ):
-            responseText += chunk.text
-            if hasattr(chunk, 'usage_metadata'):
-                total_tokens += chunk.usage_metadata.total_token_count
-                print(f"Token usage: {total_tokens} tokens")
+{prompt}""",
+                generation_config=genai.types.GenerationConfig(
+                    response_mime_type="application/json",
+                    response_schema=schema
+                )
+            )
 
-        print(f"Total token usage: {total_tokens} tokens")
+            responseText = response.text
+            total_tokens = response.usage_metadata.total_token_count if response.usage_metadata else 0
+            print(f"Total token usage: {total_tokens} tokens")
 
-        try:
-            response_dict = json.loads(responseText)
+            try:
+                response_dict = json.loads(responseText)
 
-            # If we got a valid schedule, check for overlaps and completeness
-            if "classes" in response_dict and response_dict["classes"]:
-                # First, check if all requested courses are included
-                requested_courses = set()
-                for course in courses:
-                    requested_courses.add(
-                        course['department'] + course['number'])
+                # If we got a valid schedule, check for overlaps and completeness
+                if "classes" in response_dict and response_dict["classes"]:
+                    # First, check if all requested courses are included
+                    requested_courses = set()
+                    for course in courses:
+                        requested_courses.add(
+                            course['department'] + course['number'])
 
-                scheduled_courses = set()
-                for cls in response_dict["classes"]:
-                    # Normalize course number by removing hyphens
-                    course_number = cls["courseNumber"].replace("-", "")
-                    scheduled_courses.add(course_number)
+                    scheduled_courses = set()
+                    for cls in response_dict["classes"]:
+                        # Normalize course number by removing hyphens
+                        course_number = cls["courseNumber"].replace("-", "")
+                        scheduled_courses.add(course_number)
 
-                if requested_courses != scheduled_courses:
-                    print(
-                        f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
-                    retry_count += 1
-                    continue
-
-                # Convert time strings to minutes for easier comparison
-                def time_to_minutes(time_str):
-                    # Handle different time formats
-                    if ' ' in time_str:
-                        time, period = time_str.split()
-                    else:
-                        # If no space, find where the time ends and period begins
-                        for i, char in enumerate(time_str):
-                            if char.isalpha():
-                                time = time_str[:i]
-                                period = time_str[i:]
-                                break
-                        else:
-                            # If no period found, assume 24-hour format
-                            time = time_str
-                            period = ''
-
-                    # Parse hours and minutes
-                    if ':' in time:
-                        hours, minutes = map(int, time.split(':'))
-                    else:
-                        hours = int(time)
-                        minutes = 0
-
-                    # Convert to 24-hour format
-                    if period:
-                        if period.upper() == 'PM' and hours != 12:
-                            hours += 12
-                        elif period.upper() == 'AM' and hours == 12:
-                            hours = 0
-
-                    return hours * 60 + minutes
-
-                # Group classes by day
-                classes_by_day = {}
-                for cls in response_dict["classes"]:
-                    try:
-                        days = list(cls["days"])
-                        # Log the time string for debugging
-                        print(f"Processing time string: {cls['time']}")
-
-                        # Split time string and handle potential errors
-                        time_parts = cls["time"].split(" - ")
-                        if len(time_parts) != 2:
-                            print(f"Invalid time format: {cls['time']}")
-                            continue
-
-                        start_time, end_time = time_parts
-
-                        for day in days:
-                            if day not in classes_by_day:
-                                classes_by_day[day] = []
-                            classes_by_day[day].append({
-                                "start": time_to_minutes(start_time),
-                                "end": time_to_minutes(end_time),
-                                "crn": cls["crn"],
-                                "course": cls["courseNumber"]
-                            })
-                    except Exception as e:
-                        save_log_entry(
-                            message=f"Error processing class {cls['courseNumber']}: {str(e)}")
+                    if requested_courses != scheduled_courses:
+                        print(
+                            f"Missing courses in schedule. Requested: {requested_courses}, Scheduled: {scheduled_courses}")
+                        retry_count += 1
                         continue
 
-                # Check for overlaps in each day
-                has_overlap = False
-                for day, classes in classes_by_day.items():
-                    # Sort classes by start time
-                    classes.sort(key=lambda x: x["start"])
+                    # Convert time strings to minutes for easier comparison
+                    def time_to_minutes(time_str):
+                        # Handle different time formats
+                        if ' ' in time_str:
+                            time, period = time_str.split()
+                        else:
+                            # If no space, find where the time ends and period begins
+                            for i, char in enumerate(time_str):
+                                if char.isalpha():
+                                    time = time_str[:i]
+                                    period = time_str[i:]
+                                    break
+                            else:
+                                # If no period found, assume 24-hour format
+                                time = time_str
+                                period = ''
 
-                    # Check each consecutive pair
-                    for i in range(len(classes) - 1):
-                        current = classes[i]
-                        next_class = classes[i + 1]
+                        # Parse hours and minutes
+                        if ':' in time:
+                            hours, minutes = map(int, time.split(':'))
+                        else:
+                            hours = int(time)
+                            minutes = 0
 
-                        # Check for overlap or insufficient gap
-                        if current["end"] > next_class["start"] or \
-                           (next_class["start"] - current["end"]) < 5:  # 5-minute gap requirement
-                            has_overlap = True
-                            print(
-                                f"Overlap found on {day} between {current['course']} and {next_class['course']}")
+                        # Convert to 24-hour format
+                        if period:
+                            if period.upper() == 'PM' and hours != 12:
+                                hours += 12
+                            elif period.upper() == 'AM' and hours == 12:
+                                hours = 0
+
+                        return hours * 60 + minutes
+
+                    # Group classes by day
+                    classes_by_day = {}
+                    for cls in response_dict["classes"]:
+                        try:
+                            days = list(cls["days"])
+                            # Log the time string for debugging
+                            print(f"Processing time string: {cls['time']}")
+
+                            # Split time string and handle potential errors
+                            time_parts = cls["time"].split(" - ")
+                            if len(time_parts) != 2:
+                                print(f"Invalid time format: {cls['time']}")
+                                continue
+
+                            start_time, end_time = time_parts
+
+                            for day in days:
+                                if day not in classes_by_day:
+                                    classes_by_day[day] = []
+                                classes_by_day[day].append({
+                                    "start": time_to_minutes(start_time),
+                                    "end": time_to_minutes(end_time),
+                                    "crn": cls["crn"],
+                                    "course": cls["courseNumber"]
+                                })
+                        except Exception as e:
+                            save_log_entry(
+                                message=f"Error processing class {cls['courseNumber']}: {str(e)}")
+                            continue
+
+                    # Check for overlaps in each day
+                    has_overlap = False
+                    for day, classes in classes_by_day.items():
+                        # Sort classes by start time
+                        classes.sort(key=lambda x: x["start"])
+
+                        # Check each consecutive pair
+                        for i in range(len(classes) - 1):
+                            current = classes[i]
+                            next_class = classes[i + 1]
+
+                            # Check for overlap or insufficient gap
+                            if current["end"] > next_class["start"] or \
+                               (next_class["start"] - current["end"]) < 5:  # 5-minute gap requirement
+                                has_overlap = True
+                                print(
+                                    f"Overlap found on {day} between {current['course']} and {next_class['course']}")
+                                break
+
+                        if has_overlap:
                             break
 
-                    if has_overlap:
-                        break
-
-                if not has_overlap:
-                    return response_dict, total_tokens
+                    if not has_overlap:
+                        return response_dict, total_tokens
+                    else:
+                        print("Overlap detected, retrying...")
+                        retry_count += 1
+                        continue
                 else:
-                    print("Overlap detected, retrying...")
-                    retry_count += 1
-                    continue
-            else:
-                return response_dict, total_tokens
+                    return response_dict, total_tokens
 
-        except json.JSONDecodeError:
-            save_log_entry(message="Invalid JSON response, retrying...")
+            except json.JSONDecodeError:
+                save_log_entry(message="Invalid JSON response, retrying...")
+                retry_count += 1
+                continue
+            except Exception as e:
+                save_log_entry(message=f"Error processing response: {str(e)}")
+                retry_count += 1
+                continue
+
+        except Exception as e:
+            save_log_entry(message=f"Error calling Gemini API: {str(e)}")
             retry_count += 1
             continue
 
