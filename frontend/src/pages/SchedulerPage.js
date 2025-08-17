@@ -378,7 +378,7 @@ const SchedulerPage = () => {
           </h1>
           <p className="text-base sm:text-lg lg:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Enter your Virginia Tech courses and preferences to generate an
-            optimal, conflict-free schedule.
+            optimal, conflict-free schedule using our production backend.
           </p>
         </div>
 
